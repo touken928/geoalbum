@@ -1,0 +1,253 @@
+@import "tailwindcss";
+
+/* 
+ * CRITICAL FIX: Tailwind CSS 4 preflight resets img max-width to 100%
+ * This breaks Leaflet map tiles. Using @layer base to override preflight.
+ */
+@layer base {
+  /* Override Tailwind's img reset for Leaflet */
+  .leaflet-container img,
+  .leaflet-tile-pane img,
+  .leaflet-marker-icon,
+  .leaflet-marker-shadow,
+  .leaflet-tile {
+    max-width: none !important;
+    max-height: none !important;
+    width: auto;
+    height: auto;
+  }
+  
+  /* Ensure Leaflet controls are visible */
+  .leaflet-control-container {
+    position: absolute;
+    z-index: 1000;
+  }
+  
+  .leaflet-control-zoom {
+    display: flex !important;
+    flex-direction: column;
+  }
+  
+  .leaflet-control-zoom a {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 30px !important;
+    height: 30px !important;
+    line-height: 30px !important;
+    font-size: 18px !important;
+  }
+  
+  /* Fix attribution control */
+  .leaflet-control-attribution {
+    display: block !important;
+  }
+}
+
+/* Ensure Leaflet container has proper dimensions */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  min-height: 400px;
+  z-index: 0;
+}
+
+/* Custom album marker styles */
+.custom-album-marker {
+  background: transparent;
+  border: none;
+}
+
+.album-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.album-marker .marker-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.album-marker.has-photos .marker-icon {
+  background: #2563eb;
+  color: white;
+}
+
+.album-marker.no-photos .marker-icon {
+  background: #9ca3af;
+  color: white;
+}
+
+.album-marker:hover .marker-icon {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.album-marker .photo-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #dc2626;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Leaflet popup customization */
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 0;
+}
+
+/* Line clamp utility for description */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-4 {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Custom styles for the GeoAlbum application */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure map wrapper has proper height in flex container */
+.map-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Custom marker styles */
+.cluster-marker {
+  background-color: #ef4444;
+  border: 2px solid white;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Timeline styles */
+.timeline-container {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Album panel styles */
+.album-panel {
+  backdrop-filter: blur(10px);
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+/* Photo carousel styles */
+.photo-carousel {
+  scroll-behavior: smooth;
+}
+
+.photo-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.photo-carousel {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* 
+ * CRITICAL: Final Leaflet overrides - must be at the end of the file
+ * These styles override Tailwind CSS 4 preflight which sets img { max-width: 100% }
+ * Using high specificity selectors to ensure they take precedence
+ */
+html body .leaflet-container img,
+html body .leaflet-tile-pane img,
+html body .leaflet-marker-pane img,
+html body .leaflet-shadow-pane img,
+html body .leaflet-container .leaflet-tile,
+html body .leaflet-container .leaflet-marker-icon,
+html body .leaflet-container .leaflet-marker-shadow,
+html body .leaflet-container img.leaflet-image-layer {
+  max-width: none !important;
+  max-height: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* Ensure map container is visible and has proper dimensions */
+html body .leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 400px !important;
+  background: #ddd !important;
+  z-index: 0 !important;
+}
+
+/* Ensure zoom controls are visible */
+html body .leaflet-control-zoom {
+  display: flex !important;
+  flex-direction: column !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+html body .leaflet-control-zoom a {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 30px !important;
+  height: 30px !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure attribution is visible */
+html body .leaflet-control-attribution {
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Custom arrow icon for path direction */
+.custom-arrow-icon {
+  background: transparent !important;
+  border: none !important;
+}

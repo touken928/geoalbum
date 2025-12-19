@@ -1,0 +1,199 @@
+/* Custom styles for album markers and clusters */
+
+/* Album marker styles */
+.album-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 40px;
+}
+
+.album-marker .marker-icon {
+  color: #2563eb; /* blue-600 */
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.album-marker.has-photos .marker-icon {
+  color: #dc2626; /* red-600 */
+}
+
+.album-marker.no-photos .marker-icon {
+  color: #6b7280; /* gray-500 */
+}
+
+.album-marker .photo-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444; /* red-500 */
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 4px;
+  border-radius: 8px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Cluster marker styles */
+.custom-cluster-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.cluster-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.cluster-marker:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.cluster-small {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.cluster-medium {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.cluster-large {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.cluster-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+}
+
+.cluster-count {
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Override default cluster styles */
+.marker-cluster-small {
+  background-color: transparent !important;
+}
+
+.marker-cluster-medium {
+  background-color: transparent !important;
+}
+
+.marker-cluster-large {
+  background-color: transparent !important;
+}
+
+.marker-cluster-small div {
+  background-color: transparent !important;
+}
+
+.marker-cluster-medium div {
+  background-color: transparent !important;
+}
+
+.marker-cluster-large div {
+  background-color: transparent !important;
+}
+
+/* Popup styles for better appearance */
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 0;
+}
+
+.leaflet-popup-tip {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Performance optimizations */
+.cluster-marker {
+  will-change: transform;
+  transform: translateZ(0); /* Force hardware acceleration */
+}
+
+.album-marker {
+  will-change: transform;
+  transform: translateZ(0); /* Force hardware acceleration */
+}
+
+/* Smooth animations for better UX */
+.leaflet-marker-icon {
+  transition: opacity 0.2s ease;
+}
+
+.leaflet-marker-icon.leaflet-interactive:hover {
+  opacity: 0.8;
+}
+
+/* Optimize cluster animations */
+.leaflet-cluster-anim .leaflet-marker-icon,
+.leaflet-cluster-anim .leaflet-marker-shadow {
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+/* Loading states */
+.map-loading {
+  position: relative;
+}
+
+.map-loading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Responsive cluster sizes */
+@media (max-width: 768px) {
+  .cluster-marker {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .cluster-count {
+    font-size: 12px;
+  }
+  
+  /* Reduce animations on mobile for better performance */
+  .cluster-marker {
+    transition: transform 0.1s ease;
+  }
+  
+  .leaflet-cluster-anim .leaflet-marker-icon,
+  .leaflet-cluster-anim .leaflet-marker-shadow {
+    transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+  }
+}

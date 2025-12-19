@@ -1,0 +1,48 @@
+# Binary
+geoalbum
+geoalbum.exe
+
+# Data
+data/
+logs/
+build/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+go.work
+go.work.sum
+
+# Test & Coverage
+coverage.out
+coverage.html
+*.cover
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.env.local
+
+# Temp
+*.tmp
+*.temp
+*.log
+
+# agent
+.kiro/
+.claude/
