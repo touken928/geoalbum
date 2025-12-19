@@ -2,7 +2,7 @@
 
 一个基于地图的照片管理应用，在地图上记录旅行足迹，管理照片回忆。（A map-based photo management app for recording travel footprints and managing photo memories.）
 
-[](assert/screenshot.png)
+![截图](assert/screenshot.png)
 
 ## ✨ 功能特性
 
