@@ -1,10 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import MapComponent from '../components/MapComponent';
 import DateRangeFilter from '../components/DateRangeFilter';
 import AlbumPanel from '../components/AlbumPanel';
 import LoadingOverlay from '../components/LoadingOverlay';
 import CreateAlbumModal from '../components/CreateAlbumModal';
+import SearchBox from '../components/SearchBox';
+import ToolbarDropdown from '../components/ToolbarDropdown';
+import { type MapLayer } from '../components/LayerControl';
 import { useMapData } from '../hooks/useMapData';
 import { useTimeline } from '../hooks/useTimeline';
 import { apiClient } from '../services/api';
@@ -12,12 +16,14 @@ import type { Album, TimeRange } from '../types';
 
 const MapPage: React.FC = () => {
   const { user, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const [showPaths, setShowPaths] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [isAlbumPanelOpen, setIsAlbumPanelOpen] = useState(false);
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
   const [newAlbumCoords, setNewAlbumCoords] = useState<[number, number] | null>(null);
   const [isCreateMode, setIsCreateMode] = useState(false); // New state for create mode
+  const [currentLayer, setCurrentLayer] = useState<MapLayer>('vector');
 
   // Timeline state management
   const {
@@ -50,6 +56,13 @@ const MapPage: React.FC = () => {
     setSelectedAlbum(album);
     setIsAlbumPanelOpen(true);
     console.log('Album clicked:', album);
+  }, []);
+
+  // Handle search result selection - zoom to album
+  const handleSearchSelect = useCallback((album: Album) => {
+    setSelectedAlbum(album);
+    setIsAlbumPanelOpen(true);
+    // The map will automatically show the album marker
   }, []);
 
   // Handle map click for creating new album (only when in create mode)
@@ -136,53 +149,90 @@ const MapPage: React.FC = () => {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Header */}
       <header className="bg-white shadow-sm border-b flex-shrink-0">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-3">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">GeoAlbum</h1>
-              <span className="ml-2 text-sm text-gray-500">地理相册</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={toggleCreateMode}
-                className={`px-3 py-1 text-sm rounded transition-colors ${
-                  isCreateMode
-                    ? 'bg-red-500 text-white hover:bg-red-600'
-                    : 'bg-blue-500 text-white hover:bg-blue-600'
-                }`}
+        <div className="px-2 sm:px-4 lg:px-8">
+          {/* First row - Title and user info */}
+          <div className="flex justify-between items-center py-2 sm:py-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">{t('app.title')}</h1>
+              
+              {/* GitHub link - hidden on mobile */}
+              <a
+                href="https://github.com/touken928"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:block text-gray-600 hover:text-gray-900 transition-colors"
+                title="GitHub"
               >
-                {isCreateMode ? '取消创建' : '创建相册'}
-              </button>
-              <label className="flex items-center text-sm">
-                <input
-                  type="checkbox"
-                  checked={showPaths}
-                  onChange={(e) => setShowPaths(e.target.checked)}
-                  className="mr-1"
-                />
-                显示路径
-              </label>
-              <span className="text-sm text-gray-700">
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </a>
+            </div>
+            
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              {/* User info - abbreviated on mobile */}
+              <span className="text-xs sm:text-sm text-gray-600 px-1 sm:px-2 max-w-[80px] sm:max-w-none truncate">
                 {user?.username}
               </span>
+              
+              {/* Language toggle */}
+              <button
+                onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+                className="h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                title={language === 'zh' ? 'Switch to English' : '切换到中文'}
+              >
+                {language === 'zh' ? 'EN' : '中文'}
+              </button>
+              
+              {/* Logout button */}
               <button
                 onClick={logout}
-                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                className="h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
               >
-                退出
+                {t('header.logout')}
               </button>
             </div>
           </div>
           
-          {/* Date Range Filter */}
-          <div className="py-2 border-t border-gray-100">
-            <DateRangeFilter
-              selectedRange={selectedRange}
-              onRangeChange={handleDateRangeChange}
-              onReset={handleResetRange}
-              totalCount={allAlbums.length}
-              filteredCount={albums.length}
-            />
+          {/* Second row - Date Range Filter and Search */}
+          <div className="py-2 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-4">
+            <div className="flex-shrink-0 overflow-x-auto">
+              <DateRangeFilter
+                selectedRange={selectedRange}
+                onRangeChange={handleDateRangeChange}
+                onReset={handleResetRange}
+                totalCount={allAlbums.length}
+                filteredCount={albums.length}
+              />
+            </div>
+            
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Search box - full width on mobile */}
+              <SearchBox
+                albums={allAlbums}
+                onAlbumSelect={handleSearchSelect}
+                className="flex-1 sm:w-64"
+              />
+              
+              {/* Toolbar dropdown */}
+              <ToolbarDropdown
+                currentLayer={currentLayer}
+                onLayerChange={setCurrentLayer}
+                isCreateMode={isCreateMode}
+                onToggleCreateMode={toggleCreateMode}
+                showPaths={showPaths}
+                onToggleShowPaths={() => setShowPaths(!showPaths)}
+              />
+            </div>
           </div>
         </div>
       </header>
@@ -192,7 +242,7 @@ const MapPage: React.FC = () => {
         {error && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-lg">
             <div className="flex items-center justify-between">
-              <span>错误: {error}</span>
+              <span>{t('common.error')}: {error}</span>
               <button
                 onClick={clearError}
                 className="ml-4 text-red-500 hover:text-red-700 font-bold"
@@ -213,13 +263,14 @@ const MapPage: React.FC = () => {
             showPaths={showPaths}
             paths={paths}
             isCreateMode={isCreateMode}
+            currentLayer={currentLayer}
             className="absolute inset-0"
           />
           
           {/* Loading overlay */}
           <LoadingOverlay 
             isVisible={isLoading} 
-            message="加载地图数据中..." 
+            message={t('map.loading')}
             backdrop={false}
           />
         </div>

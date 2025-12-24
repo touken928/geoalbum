@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Edit3, Upload, ChevronLeft, ChevronRight, MapPin, Calendar, Camera, Route, Trash2 } from 'lucide-react';
 import type { Photo, AlbumPanelProps, Album } from '../types';
 import { apiClient } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 import PhotoUpload from './PhotoUpload';
 import NextDestinationSelector from './NextDestinationSelector';
 import LazyImage from './LazyImage';
@@ -39,6 +40,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<Photo | null>(null);
+  const { t, language } = useLanguage();
 
   // Load photos and next destination when album changes
   useEffect(() => {
@@ -73,7 +75,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
       const albumPhotos = await apiClient.getAlbumPhotos(album.id);
       setPhotos(albumPhotos.sort((a, b) => a.display_order - b.display_order));
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载照片失败');
+      setError(err instanceof Error ? err.message : t('album.loadPhotosFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -93,7 +95,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
       setIsEditing(false);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存失败');
+      setError(err instanceof Error ? err.message : t('album.saveFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -150,7 +152,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
       }
       setPhotoToDelete(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '删除照片失败');
+      setError(err instanceof Error ? err.message : t('album.deletePhotoFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -162,7 +164,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
     
     // Simple password verification (in production, this should be server-side)
     if (deletePassword !== 'delete') {
-      setDeleteError('密码错误，请输入 "delete" 确认删除');
+      setDeleteError(t('album.deletePasswordError'));
       return;
     }
 
@@ -174,14 +176,15 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
       onAlbumDeleted?.(album.id);
       onClose();
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : '删除相册失败');
+      setDeleteError(err instanceof Error ? err.message : t('album.deleteAlbumFailed'));
     } finally {
       setIsLoading(false);
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('zh-CN', {
+    const locale = language === 'zh' ? 'zh-CN' : 'en-US';
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -207,7 +210,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 className="text-xl font-semibold bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none"
-                placeholder="相册标题"
+                placeholder={t('album.titlePlaceholder')}
               />
             ) : (
               <h2 className="text-xl font-semibold text-gray-900">{album.title}</h2>
@@ -222,13 +225,13 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                   disabled={isLoading}
                   className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                 >
-                  保存
+                  {t('album.save')}
                 </button>
                 <button
                   onClick={handleCancelEdit}
                   className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
                 >
-                  取消
+                  {t('album.cancel')}
                 </button>
               </>
             ) : (
@@ -236,14 +239,14 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                 <button
                   onClick={() => setIsEditing(true)}
                   className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-                  title="编辑相册"
+                  title={t('album.editAlbum')}
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
                   className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded"
-                  title="删除相册"
+                  title={t('album.deleteAlbum')}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -267,7 +270,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="flex flex-col items-center space-y-2">
                   <LoadingSpinner size="lg" />
-                  <div className="text-gray-500">加载照片中...</div>
+                  <div className="text-gray-500">{t('album.loadingPhotos')}</div>
                 </div>
               </div>
             )}
@@ -280,7 +283,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                     onClick={loadPhotos}
                     className="mt-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
                   >
-                    重试
+                    {t('album.retry')}
                   </button>
                 </div>
               </div>
@@ -290,8 +293,8 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center text-gray-500">
                   <Camera className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <div>暂无照片</div>
-                  <div className="text-sm mt-1">点击上传按钮添加照片</div>
+                  <div>{t('album.noPhotos')}</div>
+                  <div className="text-sm mt-1">{t('album.noPhotosHint')}</div>
                 </div>
               </div>
             )}
@@ -342,21 +345,21 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                 </div>
                 
                 <div className="text-sm text-gray-500 mb-3">
-                  坐标: {album.latitude.toFixed(6)}, {album.longitude.toFixed(6)}
+                  {t('album.coordinates')}: {album.latitude.toFixed(6)}, {album.longitude.toFixed(6)}
                 </div>
                 
                 <div className="mb-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">描述</h3>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">{t('album.description')}</h3>
                   {isEditing ? (
                     <textarea
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
                       className="w-full h-24 p-2 border border-gray-300 rounded focus:border-blue-500 focus:outline-none resize-none"
-                      placeholder="添加相册描述..."
+                      placeholder={t('album.descriptionPlaceholder')}
                     />
                   ) : (
                     <p className="text-gray-600 text-sm leading-relaxed">
-                      {album.description || '暂无描述'}
+                      {album.description || t('album.noDescription')}
                     </p>
                   )}
                 </div>
@@ -365,7 +368,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
               {/* Next Destination */}
               {nextDestination && (
                 <div className="mb-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">下一站</h3>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">{t('album.nextDestination')}</h3>
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-center space-x-2">
                       <Route className="w-4 h-4 text-blue-500" />
@@ -384,7 +387,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
               {photos.length > 0 && (
                 <div className="mb-4">
                   <h3 className="text-sm font-medium text-gray-700 mb-2">
-                    照片 ({photos.length})
+                    {t('album.photos')} ({photos.length})
                   </h3>
                   <div className="grid grid-cols-3 gap-2">
                     {photos.map((photo, index) => (
@@ -409,7 +412,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                             setPhotoToDelete(photo);
                           }}
                           className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                          title="删除照片"
+                          title={t('album.delete')}
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -427,7 +430,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                 className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mb-2"
               >
                 <Upload className="w-4 h-4" />
-                <span>上传照片</span>
+                <span>{t('album.uploadPhoto')}</span>
               </button>
               
               <button
@@ -435,7 +438,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                 className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
               >
                 <Route className="w-4 h-4" />
-                <span>{nextDestination ? '修改下一站' : '设置下一站'}</span>
+                <span>{nextDestination ? t('album.modifyNextDestination') : t('album.setNextDestination')}</span>
               </button>
             </div>
           </div>
@@ -446,9 +449,9 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">确认删除相册</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('album.confirmDeleteAlbum')}</h3>
             <p className="text-gray-600 mb-4">
-              删除相册将同时删除所有照片，此操作不可恢复。请输入 <strong>delete</strong> 确认删除。
+              {t('album.deleteAlbumWarning')} <strong>delete</strong> {t('album.deleteAlbumWarning2')}
             </p>
             <input
               type="text"
@@ -457,7 +460,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                 setDeletePassword(e.target.value);
                 setDeleteError(null);
               }}
-              placeholder="输入 delete 确认"
+              placeholder={t('album.deletePasswordPlaceholder')}
               className="w-full px-3 py-2 border border-gray-300 rounded mb-2 focus:outline-none focus:ring-2 focus:ring-red-500"
             />
             {deleteError && (
@@ -472,14 +475,14 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                 }}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
               >
-                取消
+                {t('album.cancel')}
               </button>
               <button
                 onClick={handleDeleteAlbum}
                 disabled={isLoading}
                 className="flex-1 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
               >
-                {isLoading ? '删除中...' : '确认删除'}
+                {isLoading ? t('album.deleting') : t('album.confirmDelete')}
               </button>
             </div>
           </div>
@@ -490,23 +493,23 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
       {photoToDelete && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">确认删除照片</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('album.confirmDeletePhoto')}</h3>
             <p className="text-gray-600 mb-4">
-              确定要删除这张照片吗？此操作不可恢复。
+              {t('album.deletePhotoWarning')}
             </p>
             <div className="flex space-x-3">
               <button
                 onClick={() => setPhotoToDelete(null)}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
               >
-                取消
+                {t('album.cancel')}
               </button>
               <button
                 onClick={() => handleDeletePhoto(photoToDelete)}
                 disabled={isLoading}
                 className="flex-1 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
               >
-                {isLoading ? '删除中...' : '确认删除'}
+                {isLoading ? t('album.deleting') : t('album.confirmDelete')}
               </button>
             </div>
           </div>

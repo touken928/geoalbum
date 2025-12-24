@@ -118,6 +118,7 @@ export interface MapComponentProps {
   paths: Path[];
   isCreateMode?: boolean;
   className?: string;
+  currentLayer?: 'vector' | 'satellite';
 }
 
 // Timeline component props

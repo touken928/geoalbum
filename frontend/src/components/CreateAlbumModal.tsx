@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, MapPin, Calendar } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface CreateAlbumModalProps {
   coordinates: [number, number];
@@ -12,6 +13,7 @@ const CreateAlbumModal: React.FC<CreateAlbumModalProps> = ({
   onClose,
   onCreate,
 }) => {
+  const { t } = useLanguage();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [createdAt, setCreatedAt] = useState(() => {
@@ -38,7 +40,7 @@ const CreateAlbumModal: React.FC<CreateAlbumModalProps> = ({
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-lg font-semibold text-gray-900">创建新相册</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{t('header.createAlbum')}</h3>
           <button
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-gray-600 rounded"
@@ -53,20 +55,20 @@ const CreateAlbumModal: React.FC<CreateAlbumModalProps> = ({
           <div className="flex items-center text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
             <MapPin className="w-4 h-4 mr-2 text-blue-500" />
             <span>
-              位置: {coordinates[0].toFixed(6)}, {coordinates[1].toFixed(6)}
+              {t('map.coordinates')}: {coordinates[0].toFixed(6)}, {coordinates[1].toFixed(6)}
             </span>
           </div>
 
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              相册标题 <span className="text-red-500">*</span>
+              {t('album.title')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="输入相册标题"
+              placeholder={t('album.title')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
               autoFocus
@@ -76,12 +78,12 @@ const CreateAlbumModal: React.FC<CreateAlbumModalProps> = ({
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              描述
+              {t('album.description')}
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="添加相册描述（可选）"
+              placeholder={t('album.description')}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             />
@@ -91,7 +93,7 @@ const CreateAlbumModal: React.FC<CreateAlbumModalProps> = ({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               <Calendar className="w-4 h-4 inline mr-1" />
-              日期
+              {t('date.startDate')}
             </label>
             <input
               type="date"
@@ -108,14 +110,14 @@ const CreateAlbumModal: React.FC<CreateAlbumModalProps> = ({
               onClick={onClose}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
             >
-              取消
+              {t('album.cancel')}
             </button>
             <button
               type="submit"
               disabled={!title.trim() || isSubmitting}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isSubmitting ? '创建中...' : '创建相册'}
+              {isSubmitting ? '...' : t('album.create')}
             </button>
           </div>
         </form>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, useMapEvents, ScaleControl } from 'react-leaflet';
 import { Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet.markercluster';
@@ -10,7 +10,9 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import './MapComponent.css';
 import AlbumMarker from './AlbumMarker';
 import PathRenderer from './PathRenderer';
+import CoordinatesDisplay from './CoordinatesDisplay';
 import type { MapComponentProps, Album } from '../types';
+import type { MapLayer } from './LayerControl';
 
 
 
@@ -26,24 +28,30 @@ L.Icon.Default.mergeOptions({
   shadowUrl: iconShadow,
 });
 
-// Component to handle map click events
+// Component to handle map click and mouse move events
 const MapEventHandler: React.FC<{
   onMapClick: (coordinates: [number, number]) => void;
-}> = ({ onMapClick }) => {
+  onMouseMove: (coordinates: [number, number]) => void;
+}> = ({ onMapClick, onMouseMove }) => {
   useMapEvents({
     click: (e) => {
       const { lat, lng } = e.latlng;
       onMapClick([lat, lng]);
+    },
+    mousemove: (e) => {
+      const { lat, lng } = e.latlng;
+      onMouseMove([lat, lng]);
     },
   });
   return null;
 };
 
 // Component to render all album markers with clustering
-const AlbumMarkers: React.FC<{
+// Memoized to prevent re-rendering when parent state changes (e.g., mouse coordinates)
+const AlbumMarkers = React.memo<{
   albums: Album[];
   onAlbumClick: (album: Album) => void;
-}> = ({ albums, onAlbumClick }) => {
+}>(({ albums, onAlbumClick }) => {
   return (
     <MarkerClusterGroup
       chunkedLoading
@@ -105,7 +113,7 @@ const AlbumMarkers: React.FC<{
       ))}
     </MarkerClusterGroup>
   );
-};
+});
 
 const MapComponent: React.FC<MapComponentProps> = ({
   albums,
@@ -116,9 +124,15 @@ const MapComponent: React.FC<MapComponentProps> = ({
   paths,
   isCreateMode = false,
   className = '',
+  currentLayer = 'vector',
 }) => {
   const mapRef = useRef<LeafletMap | null>(null);
   const [hasInitializedView, setHasInitializedView] = useState(false);
+  const [mouseCoords, setMouseCoords] = useState<[number, number] | null>(null);
+  
+  // Use ref to store mouse coordinates to avoid triggering re-renders
+  const mouseCoordsRef = useRef<[number, number] | null>(null);
+  const updateTimerRef = useRef<number | null>(null);
 
   // Filter albums based on selected time range
   const filteredAlbums = React.useMemo(() => {
@@ -166,6 +180,40 @@ const MapComponent: React.FC<MapComponentProps> = ({
     [85, 180],   // Northeast corner
   ];
 
+  // Handle mouse move to update coordinates with throttling
+  // Only update state every 100ms to avoid excessive re-renders
+  const handleMouseMove = React.useCallback((coordinates: [number, number]) => {
+    mouseCoordsRef.current = coordinates;
+    
+    // Clear existing timer
+    if (updateTimerRef.current !== null) {
+      return;
+    }
+    
+    // Set new timer to update state
+    updateTimerRef.current = window.setTimeout(() => {
+      setMouseCoords(mouseCoordsRef.current);
+      updateTimerRef.current = null;
+    }, 100);
+  }, []);
+  
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimerRef.current !== null) {
+        clearTimeout(updateTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Get tile layer URL based on current layer
+  const getTileLayerUrl = (layer: MapLayer): string => {
+    if (layer === 'satellite') {
+      return 'https://webst01.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}';
+    }
+    return 'https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}';
+  };
+
   return (
     <div className={`${className}`} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
       <MapContainer
@@ -183,15 +231,20 @@ const MapComponent: React.FC<MapComponentProps> = ({
       >
         {/* Base tile layer - Gaode (AMap) */}
         <TileLayer
+          key={currentLayer}
           attribution='&copy; 高德地图'
-          url="https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}"
+          url={getTileLayerUrl(currentLayer)}
           maxZoom={18}
           minZoom={3}
         />
         
+        {/* Scale control */}
+        <ScaleControl position="bottomleft" imperial={false} />
+        
         {/* Map event handlers */}
         <MapEventHandler 
-          onMapClick={onMapClick} 
+          onMapClick={onMapClick}
+          onMouseMove={handleMouseMove}
         />
         
         {/* Album markers */}
@@ -218,6 +271,13 @@ const MapComponent: React.FC<MapComponentProps> = ({
           </div>
         </div>
       )}
+
+      {/* Coordinates display */}
+      <CoordinatesDisplay
+        lat={mouseCoords?.[0] ?? null}
+        lng={mouseCoords?.[1] ?? null}
+        className="absolute bottom-4 right-4 z-10 pointer-events-none"
+      />
     </div>
   );
 };

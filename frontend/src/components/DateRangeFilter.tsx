@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 import type { TimeRange } from '../types';
 
 interface DateRangeFilterProps {
@@ -17,6 +18,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
   totalCount,
   filteredCount,
 }) => {
+  const { t } = useLanguage();
   const formatDateForInput = (date: Date): string => {
     return date.toISOString().slice(0, 10);
   };
@@ -43,21 +45,11 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
     }
   };
 
-  const handleTodayClick = () => {
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-    onRangeChange({
-      startDate: startOfDay,
-      endDate: endOfDay,
-    });
-  };
-
   return (
     <div className="flex items-center space-x-3 text-sm">
       <div className="flex items-center space-x-2">
         <Calendar className="w-4 h-4 text-gray-500" />
-        <span className="text-gray-600">时间:</span>
+        <span className="text-gray-600">{t('date.startDate')}:</span>
       </div>
       
       <div className="flex items-center space-x-2">
@@ -67,7 +59,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
           onChange={handleStartDateChange}
           className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
-        <span className="text-gray-400">至</span>
+        <span className="text-gray-400">-</span>
         <input
           type="date"
           value={formatDateForInput(selectedRange.endDate)}
@@ -78,21 +70,15 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
 
       <div className="flex items-center space-x-1">
         <button
-          onClick={handleTodayClick}
-          className="px-2 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-        >
-          今天
-        </button>
-        <button
           onClick={onReset}
           className="px-2 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
         >
-          全部
+          {t('date.reset')}
         </button>
       </div>
 
       <div className="text-gray-500">
-        {filteredCount} / {totalCount}
+        {t('date.showing')} {filteredCount} {t('date.of')} {totalCount} {t('date.albums')}
       </div>
     </div>
   );
