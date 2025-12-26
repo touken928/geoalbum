@@ -2,6 +2,8 @@ package service
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -111,4 +113,32 @@ func (s *UserService) GetUserByID(id string) (*model.User, error) {
 		return nil, fmt.Errorf("user not found")
 	}
 	return user, nil
+}
+
+// DeleteUser deletes a user and all associated data including photo files
+func (s *UserService) DeleteUser(userID string) error {
+	// Check if user exists
+	user, err := s.userDAO.GetByID(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+	if user == nil {
+		return fmt.Errorf("user not found")
+	}
+
+	// Delete user's photo files directory
+	uploadsDir := filepath.Join("data", "uploads", userID)
+	if _, err := os.Stat(uploadsDir); err == nil {
+		if err := os.RemoveAll(uploadsDir); err != nil {
+			// Log error but continue with database deletion
+			fmt.Printf("Warning: failed to delete user photos directory %s: %v\n", uploadsDir, err)
+		}
+	}
+
+	// Delete user from database (CASCADE will delete albums, photos, paths)
+	if err := s.userDAO.Delete(userID); err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	return nil
 }

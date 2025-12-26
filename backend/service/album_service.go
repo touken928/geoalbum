@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -169,12 +170,20 @@ func (s *AlbumService) UpdateAlbum(id, userID, title, description string) (*mode
 	return album, nil
 }
 
-// DeleteAlbum deletes an album
+// DeleteAlbum deletes an album and its associated photo files
 func (s *AlbumService) DeleteAlbum(id, userID string) error {
 	// First check if album exists and belongs to user
-	_, err := s.GetAlbumByID(id, userID)
+	album, err := s.GetAlbumByID(id, userID)
 	if err != nil {
 		return err
+	}
+
+	// Delete photo files from disk
+	for _, photo := range album.Photos {
+		if err := os.Remove(photo.FilePath); err != nil {
+			// Log error but don't fail the operation
+			fmt.Printf("Warning: failed to delete photo file %s: %v\n", photo.FilePath, err)
+		}
 	}
 
 	if err := s.albumDAO.Delete(id, userID); err != nil {

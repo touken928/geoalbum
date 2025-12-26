@@ -54,3 +54,13 @@ func (dao *UserDAO) GetByID(id string) (*model.User, error) {
 	}
 	return &user, nil
 }
+
+// Delete deletes a user from the database
+func (dao *UserDAO) Delete(id string) error {
+	query := `DELETE FROM users WHERE id = ?`
+	_, err := database.DB.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+	return nil
+}

@@ -48,8 +48,8 @@ func (s *PhotoService) UploadPhoto(albumID, userID string, file *multipart.FileH
 		return nil, fmt.Errorf("invalid file type: only JPEG, PNG, and HEIC are supported")
 	}
 
-	// Create uploads directory if it doesn't exist
-	uploadsDir := "data/uploads"
+	// Create user-specific uploads directory if it doesn't exist
+	uploadsDir := filepath.Join("data", "uploads", userID)
 	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create uploads directory: %w", err)
 	}
@@ -229,6 +229,23 @@ func (s *PhotoService) isValidImageType(mimeType string) bool {
 		}
 	}
 	return false
+}
+
+// DeleteUserPhotosDirectory deletes the entire uploads directory for a user
+func (s *PhotoService) DeleteUserPhotosDirectory(userID string) error {
+	uploadsDir := filepath.Join("data", "uploads", userID)
+	
+	// Check if directory exists
+	if _, err := os.Stat(uploadsDir); os.IsNotExist(err) {
+		return nil // Directory doesn't exist, nothing to delete
+	}
+	
+	// Remove the entire user directory
+	if err := os.RemoveAll(uploadsDir); err != nil {
+		return fmt.Errorf("failed to delete user photos directory: %w", err)
+	}
+	
+	return nil
 }
 
 // TokenClaims represents the JWT claims for photo access
