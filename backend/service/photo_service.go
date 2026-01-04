@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"geoalbum/backend/dao"
+	"geoalbum/backend/database"
 	"geoalbum/backend/middleware"
 	"geoalbum/backend/model"
 )
@@ -48,62 +47,54 @@ func (s *PhotoService) UploadPhoto(albumID, userID string, file *multipart.FileH
 		return nil, fmt.Errorf("invalid file type: only JPEG, PNG, and HEIC are supported")
 	}
 
-	// Create user-specific uploads directory if it doesn't exist
-	uploadsDir := filepath.Join("data", "uploads", userID)
-	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create uploads directory: %w", err)
-	}
+	// Generate unique photo ID
+	photoID := uuid.New().String()
 
-	// Generate unique filename
-	ext := filepath.Ext(file.Filename)
-	filename := uuid.New().String() + ext
-	filePath := filepath.Join(uploadsDir, filename)
-
-	// Save file to disk
+	// Read file content
 	src, err := file.Open()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open uploaded file: %w", err)
 	}
 	defer src.Close()
 
-	dst, err := os.Create(filePath)
+	data, err := io.ReadAll(src)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create file: %w", err)
+		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
-	defer dst.Close()
 
-	if _, err := io.Copy(dst, src); err != nil {
-		return nil, fmt.Errorf("failed to save file: %w", err)
+	// Store in bbolt with key format: userID/photoID
+	blobKey := fmt.Sprintf("%s/%s", userID, photoID)
+	if err := database.SaveBlob(database.PhotoBucket, blobKey, data); err != nil {
+		return nil, fmt.Errorf("failed to save photo to blob store: %w", err)
 	}
 
 	// Get next display order
 	existingPhotos, err := s.photoDAO.GetByAlbumID(albumID)
 	if err != nil {
+		// Clean up blob if database query fails
+		database.DeleteBlob(database.PhotoBucket, blobKey)
 		return nil, fmt.Errorf("failed to get existing photos: %w", err)
 	}
 	displayOrder := len(existingPhotos)
 
 	// Create photo record
 	photo := &model.Photo{
-		ID:           uuid.New().String(),
+		ID:           photoID,
 		AlbumID:      albumID,
 		Filename:     file.Filename,
-		FilePath:     filePath,
+		FilePath:     blobKey, // Store blob key instead of file path
 		FileSize:     file.Size,
 		MimeType:     file.Header.Get("Content-Type"),
 		DisplayOrder: displayOrder,
 		UploadedAt:   time.Now(),
-		URL:          fmt.Sprintf("/api/photos/%s/file", uuid.New().String()),
+		URL:          fmt.Sprintf("/api/photos/%s/file", photoID),
 	}
 
 	if err := s.photoDAO.Create(photo); err != nil {
-		// Clean up file if database insert fails
-		os.Remove(filePath)
+		// Clean up blob if database insert fails
+		database.DeleteBlob(database.PhotoBucket, blobKey)
 		return nil, fmt.Errorf("failed to create photo record: %w", err)
 	}
-
-	// Set the correct URL with the photo ID
-	photo.URL = fmt.Sprintf("/api/photos/%s/file", photo.ID)
 
 	return photo, nil
 }
@@ -168,10 +159,10 @@ func (s *PhotoService) DeletePhoto(photoID, userID string) error {
 		return err
 	}
 
-	// Delete file from disk
-	if err := os.Remove(photo.FilePath); err != nil {
+	// Delete from blob store
+	if err := database.DeleteBlob(database.PhotoBucket, photo.FilePath); err != nil {
 		// Log error but don't fail the operation
-		fmt.Printf("Warning: failed to delete file %s: %v\n", photo.FilePath, err)
+		fmt.Printf("Warning: failed to delete blob %s: %v\n", photo.FilePath, err)
 	}
 
 	// Delete from database
@@ -197,18 +188,28 @@ func (s *PhotoService) UpdatePhotoOrder(photoID, userID string, newOrder int) er
 	return nil
 }
 
-// GetPhotoFile returns the file path for serving the photo file
+// GetPhotoData returns the photo binary data for serving
+func (s *PhotoService) GetPhotoData(photoID, userID string) ([]byte, string, error) {
+	photo, err := s.GetPhotoByID(photoID, userID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Get data from blob store
+	data, err := database.GetBlob(database.PhotoBucket, photo.FilePath)
+	if err != nil {
+		return nil, "", fmt.Errorf("photo file not found: %w", err)
+	}
+
+	return data, photo.MimeType, nil
+}
+
+// GetPhotoFile returns the file path for serving the photo file (deprecated, kept for compatibility)
 func (s *PhotoService) GetPhotoFile(photoID, userID string) (string, error) {
 	photo, err := s.GetPhotoByID(photoID, userID)
 	if err != nil {
 		return "", err
 	}
-
-	// Check if file exists
-	if _, err := os.Stat(photo.FilePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("photo file not found")
-	}
-
 	return photo.FilePath, nil
 }
 
@@ -231,21 +232,19 @@ func (s *PhotoService) isValidImageType(mimeType string) bool {
 	return false
 }
 
-// DeleteUserPhotosDirectory deletes the entire uploads directory for a user
-func (s *PhotoService) DeleteUserPhotosDirectory(userID string) error {
-	uploadsDir := filepath.Join("data", "uploads", userID)
-	
-	// Check if directory exists
-	if _, err := os.Stat(uploadsDir); os.IsNotExist(err) {
-		return nil // Directory doesn't exist, nothing to delete
+// DeleteUserPhotos deletes all photos for a user from blob store
+func (s *PhotoService) DeleteUserPhotos(userID string) error {
+	// Delete all blobs with prefix userID/
+	prefix := userID + "/"
+	if err := database.DeleteBlobsByPrefix(database.PhotoBucket, prefix); err != nil {
+		return fmt.Errorf("failed to delete user photos: %w", err)
 	}
-	
-	// Remove the entire user directory
-	if err := os.RemoveAll(uploadsDir); err != nil {
-		return fmt.Errorf("failed to delete user photos directory: %w", err)
-	}
-	
 	return nil
+}
+
+// DeleteUserPhotosDirectory is deprecated, use DeleteUserPhotos instead
+func (s *PhotoService) DeleteUserPhotosDirectory(userID string) error {
+	return s.DeleteUserPhotos(userID)
 }
 
 // TokenClaims represents the JWT claims for photo access

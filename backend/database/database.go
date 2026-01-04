@@ -65,6 +65,13 @@ func Initialize() error {
 		return fmt.Errorf("failed to create tables: %w", err)
 	}
 
+	// Initialize blob store for photo storage
+	blobPath := filepath.Join(dataDir, "photos.db")
+	if err := InitBlobStore(blobPath); err != nil {
+		return fmt.Errorf("failed to initialize blob store: %w", err)
+	}
+	logging.Info("Blob store initialized for photo storage")
+
 	logging.Info("Database tables created successfully")
 	return nil
 }
@@ -210,9 +217,21 @@ func createIndexes() error {
 
 // Close closes the database connection
 func Close() error {
+	var errs []error
+	
 	if DB != nil {
 		logging.Info("Closing database connection")
-		return DB.Close()
+		if err := DB.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	
+	if err := CloseBlobStore(); err != nil {
+		errs = append(errs, err)
+	}
+	
+	if len(errs) > 0 {
+		return fmt.Errorf("errors closing databases: %v", errs)
 	}
 	return nil
 }

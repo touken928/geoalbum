@@ -208,7 +208,7 @@ func (ctrl *PhotoController) ServePhotoFile(c *gin.Context) {
 	}
 
 	photoID := c.Param("id")
-	filePath, err := ctrl.photoService.GetPhotoFile(photoID, userID)
+	data, mimeType, err := ctrl.photoService.GetPhotoData(photoID, userID)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get photo file")
 		c.JSON(http.StatusNotFound, gin.H{
@@ -220,7 +220,7 @@ func (ctrl *PhotoController) ServePhotoFile(c *gin.Context) {
 		return
 	}
 
-	c.File(filePath)
+	c.Data(http.StatusOK, mimeType, data)
 }
 
 // GetPhoto retrieves a specific photo's metadata
