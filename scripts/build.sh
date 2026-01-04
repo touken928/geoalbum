@@ -61,7 +61,6 @@ build_all() {
   echo "Building for all platforms..."
   
   # Windows
-  build_single windows 386
   build_single windows amd64
   build_single windows arm64
   
@@ -70,7 +69,6 @@ build_all() {
   build_single darwin arm64
   
   # Linux
-  build_single linux 386
   build_single linux amd64
   build_single linux arm64
 }
