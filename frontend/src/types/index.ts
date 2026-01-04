@@ -83,12 +83,7 @@ export interface TimeRange {
 
 export type TimeGranularity = 'year' | 'month' | 'day';
 
-export interface MapViewState {
-  center: [number, number];
-  zoom: number;
-}
 
-// API error response type
 export interface ApiError {
   error: {
     code: string;
@@ -119,16 +114,6 @@ export interface MapComponentProps {
   isCreateMode?: boolean;
   className?: string;
   currentLayer?: 'vector' | 'satellite';
-}
-
-// Timeline component props
-export interface TimelineProps {
-  albums: Album[];
-  selectedRange: TimeRange;
-  onRangeChange: (range: TimeRange) => void;
-  granularity: TimeGranularity;
-  onGranularityChange: (granularity: TimeGranularity) => void;
-  className?: string;
 }
 
 // Album panel props

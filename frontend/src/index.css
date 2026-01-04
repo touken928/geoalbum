@@ -166,13 +166,6 @@ body {
   justify-content: center;
 }
 
-/* Timeline styles */
-.timeline-container {
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-}
 
 /* Album panel styles */
 .album-panel {
