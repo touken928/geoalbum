@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import type { MapComponentProps, Album } from '../types';
+import CoordinateDisplay from './CoordinateDisplay';
 
 // 禁用 Cesium Ion
 Cesium.Ion.defaultAccessToken = '';
@@ -519,14 +520,7 @@ const CesiumMapComponent: React.FC<MapComponentProps> = ({
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
       {mouseCoords && (
-        <div style={{
-          position: 'absolute', bottom: 16, right: 16,
-          backgroundColor: 'rgba(0, 0, 0, 0.7)', color: 'white',
-          padding: '6px 12px', borderRadius: 6, fontSize: 12, fontFamily: 'monospace',
-          zIndex: 1000, pointerEvents: 'none', backdropFilter: 'blur(4px)',
-        }}>
-          {mouseCoords[0].toFixed(6)}°, {mouseCoords[1].toFixed(6)}°
-        </div>
+        <CoordinateDisplay coordinates={mouseCoords} />
       )}
 
       {isCreateMode && (
