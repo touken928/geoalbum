@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, MapPin, Calendar, Search, Trash2 } from 'lucide-react';
 import type { Album } from '../types';
 import { apiClient } from '../services/api';
+import ModalContainer from './ModalContainer';
 
 interface NextDestinationSelectorProps {
   currentAlbum: Album;
@@ -93,11 +94,13 @@ const NextDestinationSelector: React.FC<NextDestinationSelectorProps> = ({
     });
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <ModalContainer 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      transparent={true}
+      size="xl"
+    >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-3">
@@ -224,8 +227,7 @@ const NextDestinationSelector: React.FC<NextDestinationSelectorProps> = ({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </ModalContainer>
   );
 };
 
