@@ -26,21 +26,8 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
 		
-		// Content Security Policy
-		csp := "default-src 'self'; " +
-			"script-src 'self' 'nonce-" + nonce + "'; " +
-			"style-src 'self' 'unsafe-inline'; " +
-			"img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.openstreetmap.org https://*.is.autonavi.com https://webrd04.is.autonavi.com https://webst01.is.autonavi.com; " +
-			"font-src 'self'; " +
-			"connect-src 'self'; " +
-			"media-src 'self'; " +
-			"object-src 'none'; " +
-			"child-src 'none'; " +
-			"worker-src 'none'; " +
-			"frame-ancestors 'none'; " +
-			"form-action 'self'; " +
-			"base-uri 'self'"
-		c.Header("Content-Security-Policy", csp)
+		// CSP disabled for Cesium compatibility (WebAssembly, Workers, blob URLs)
+		// If needed, can be re-enabled with appropriate directives for production
 
 		// HSTS (HTTP Strict Transport Security) - only in production with HTTPS
 		if isProduction() && c.Request.TLS != nil {

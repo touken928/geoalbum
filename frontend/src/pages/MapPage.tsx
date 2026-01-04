@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import MapComponent from '../components/MapComponent';
+import CesiumMapComponent from '../components/CesiumMapComponent';
 import DateRangeFilter from '../components/DateRangeFilter';
 import AlbumPanel from '../components/AlbumPanel';
 import LoadingOverlay from '../components/LoadingOverlay';
@@ -254,8 +254,8 @@ const MapPage: React.FC = () => {
         )}
 
         {/* Map area - takes all remaining space */}
-        <div className="flex-1 relative">
-          <MapComponent
+        <div className="flex-1 relative" style={{ minHeight: '400px' }}>
+          <CesiumMapComponent
             albums={albums}
             selectedTimeRange={selectedRange}
             onAlbumClick={handleAlbumClick}

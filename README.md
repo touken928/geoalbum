@@ -19,7 +19,7 @@ A map-based photo management app for recording travel footprints and managing ph
 
 ## 🛠️ Tech Stack
 
-**Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + Leaflet
+**Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + Cesium
 
 **Backend**: Go + Gin + SQLite + JWT
 
