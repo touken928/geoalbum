@@ -7,6 +7,7 @@ import PhotoUpload from './PhotoUpload';
 import NextDestinationSelector from './NextDestinationSelector';
 import LazyImage from './LazyImage';
 import LoadingSpinner from './LoadingSpinner';
+import ModalContainer from './ModalContainer';
 
 interface ExtendedAlbumPanelProps extends AlbumPanelProps {
   allAlbums?: Album[];
@@ -198,8 +199,13 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
   const currentPhoto = photos[currentPhotoIndex];
 
   return (
-    <div className={`fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4 ${className}`}>
-      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+    <ModalContainer 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      transparent={true}
+      size="xl"
+      className={className}
+    >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-3">
@@ -443,7 +449,6 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
             </div>
           </div>
         </div>
-      </div>
 
       {/* Delete Album Confirmation Modal */}
       {showDeleteConfirm && (
@@ -537,7 +542,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
           onDestinationRemoved={handleDestinationRemoved}
         />
       )}
-    </div>
+    </ModalContainer>
   );
 };
 

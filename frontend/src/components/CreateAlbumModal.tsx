@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, MapPin, Calendar } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import ModalContainer from './ModalContainer';
 
 interface CreateAlbumModalProps {
   coordinates: [number, number];
@@ -36,93 +37,96 @@ const CreateAlbumModal: React.FC<CreateAlbumModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-lg font-semibold text-gray-900">{t('header.createAlbum')}</h3>
-          <button
-            onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded"
-          >
-            <X className="w-5 h-5" />
-          </button>
+    <ModalContainer 
+      isOpen={true} 
+      onClose={onClose} 
+      transparent={true}
+      size="md"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200/50">
+        <h3 className="text-lg font-semibold text-gray-900">{t('header.createAlbum')}</h3>
+        <button
+          onClick={onClose}
+          className="p-1 text-gray-400 hover:text-gray-600 rounded"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        {/* Location Info */}
+        <div className="flex items-center text-sm text-gray-500 bg-gray-50/80 p-3 rounded-lg">
+          <MapPin className="w-4 h-4 mr-2 text-blue-500" />
+          <span>
+            {t('map.coordinates')}: {coordinates[0].toFixed(6)}, {coordinates[1].toFixed(6)}
+          </span>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Location Info */}
-          <div className="flex items-center text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
-            <MapPin className="w-4 h-4 mr-2 text-blue-500" />
-            <span>
-              {t('map.coordinates')}: {coordinates[0].toFixed(6)}, {coordinates[1].toFixed(6)}
-            </span>
-          </div>
+        {/* Title */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {t('album.title')} <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t('album.title')}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/90"
+            required
+            autoFocus
+          />
+        </div>
 
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('album.title')} <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={t('album.title')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-              autoFocus
-            />
-          </div>
+        {/* Description */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {t('album.description')}
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('album.description')}
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white/90"
+          />
+        </div>
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('album.description')}
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('album.description')}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-            />
-          </div>
+        {/* Date */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            <Calendar className="w-4 h-4 inline mr-1" />
+            {t('date.startDate')}
+          </label>
+          <input
+            type="date"
+            value={createdAt}
+            onChange={(e) => setCreatedAt(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/90"
+          />
+        </div>
 
-          {/* Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              <Calendar className="w-4 h-4 inline mr-1" />
-              {t('date.startDate')}
-            </label>
-            <input
-              type="date"
-              value={createdAt}
-              onChange={(e) => setCreatedAt(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Buttons */}
-          <div className="flex space-x-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              {t('album.cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={!title.trim() || isSubmitting}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isSubmitting ? '...' : t('album.create')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {/* Buttons */}
+        <div className="flex space-x-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50/80 transition-colors"
+          >
+            {t('album.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={!title.trim() || isSubmitting}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isSubmitting ? '...' : t('album.create')}
+          </button>
+        </div>
+      </form>
+    </ModalContainer>
   );
 };
 
