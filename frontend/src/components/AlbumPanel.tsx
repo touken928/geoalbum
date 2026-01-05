@@ -202,7 +202,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
     <ModalContainer 
       isOpen={isOpen} 
       onClose={onClose} 
-      transparent={true}
+      variant="gallery"
       size="xl"
       className={className}
     >
