@@ -36,7 +36,6 @@ func Register(r *gin.Engine) {
 	albumController := controller.NewAlbumController()
 	photoController := controller.NewPhotoController()
 	pathController := controller.NewPathController()
-	securityController := controller.NewSecurityController()
 	healthController := controller.NewHealthController()
 
 	// API routes
@@ -102,15 +101,6 @@ func Register(r *gin.Engine) {
 			albums.POST("/:id/next-destination", pathController.SetNextDestination)
 			albums.GET("/:id/next-destination", pathController.GetNextDestination)
 			albums.DELETE("/:id/next-destination", pathController.RemoveNextDestination)
-		}
-
-		// Security endpoints (development only)
-		if gin.Mode() != gin.ReleaseMode {
-			security := protected.Group("/security")
-			{
-				security.GET("/report", securityController.GetSecurityReport)
-				security.GET("/best-practices", securityController.GetSecurityBestPractices)
-			}
 		}
 	}
 }

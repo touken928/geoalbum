@@ -8,7 +8,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/sirupsen/logrus"
 
-	"geoalbum/backend/common"
 	"geoalbum/backend/middleware"
 	"geoalbum/backend/service"
 )
@@ -38,18 +37,42 @@ type AuthResponse struct {
 	User  interface{} `json:"user"`
 }
 
+// Response helpers
+func successResponseAuth(c *gin.Context, statusCode int, data interface{}) {
+	c.JSON(statusCode, gin.H{"success": true, "data": data})
+}
+
+func errorResponseAuth(c *gin.Context, statusCode int, code, message string, details interface{}) {
+	c.JSON(statusCode, gin.H{
+		"success": false,
+		"error":   gin.H{"code": code, "message": message, "details": details},
+	})
+}
+
+func validationErrorResponseAuth(c *gin.Context, details interface{}) {
+	errorResponseAuth(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", details)
+}
+
+func unauthorizedErrorResponseAuth(c *gin.Context, code, message string) {
+	errorResponseAuth(c, http.StatusUnauthorized, code, message, nil)
+}
+
+func internalServerErrorResponseAuth(c *gin.Context, code, message string) {
+	errorResponseAuth(c, http.StatusInternalServerError, code, message, nil)
+}
+
 // Register handles user registration
 func (ctrl *AuthController) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		common.ValidationErrorResponse(c, err.Error())
+		validationErrorResponseAuth(c, err.Error())
 		return
 	}
 
 	user, err := ctrl.userService.CreateUser(req.Username, req.Password)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to create user")
-		common.ErrorResponse(c, http.StatusBadRequest, "USER_CREATION_FAILED", err.Error(), nil)
+		errorResponseAuth(c, http.StatusBadRequest, "USER_CREATION_FAILED", err.Error(), nil)
 		return
 	}
 
@@ -57,7 +80,7 @@ func (ctrl *AuthController) Register(c *gin.Context) {
 	token, err := ctrl.generateToken(user.ID, user.Username)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to generate JWT token")
-		common.InternalServerErrorResponse(c, "TOKEN_GENERATION_FAILED", "Failed to generate authentication token")
+		internalServerErrorResponseAuth(c, "TOKEN_GENERATION_FAILED", "Failed to generate authentication token")
 		return
 	}
 
@@ -70,21 +93,21 @@ func (ctrl *AuthController) Register(c *gin.Context) {
 		},
 	}
 
-	common.SuccessResponse(c, http.StatusCreated, response)
+	successResponseAuth(c, http.StatusCreated, response)
 }
 
 // Login handles user authentication
 func (ctrl *AuthController) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		common.ValidationErrorResponse(c, err.Error())
+		validationErrorResponseAuth(c, err.Error())
 		return
 	}
 
 	user, err := ctrl.userService.AuthenticateUser(req.Username, req.Password)
 	if err != nil {
 		logrus.WithError(err).Error("Authentication failed")
-		common.UnauthorizedErrorResponse(c, "AUTHENTICATION_FAILED", "Invalid credentials")
+		unauthorizedErrorResponseAuth(c, "AUTHENTICATION_FAILED", "Invalid credentials")
 		return
 	}
 
@@ -92,7 +115,7 @@ func (ctrl *AuthController) Login(c *gin.Context) {
 	token, err := ctrl.generateToken(user.ID, user.Username)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to generate JWT token")
-		common.InternalServerErrorResponse(c, "TOKEN_GENERATION_FAILED", "Failed to generate authentication token")
+		internalServerErrorResponseAuth(c, "TOKEN_GENERATION_FAILED", "Failed to generate authentication token")
 		return
 	}
 
@@ -105,7 +128,7 @@ func (ctrl *AuthController) Login(c *gin.Context) {
 		},
 	}
 
-	common.SuccessResponse(c, http.StatusOK, response)
+	successResponseAuth(c, http.StatusOK, response)
 }
 
 // generateToken generates a JWT token for the user
