@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Edit3, Upload, ChevronLeft, ChevronRight, MapPin, Calendar, Camera, Route, Trash2 } from 'lucide-react';
 import type { Photo, AlbumPanelProps, Album } from '../types';
 import { apiClient } from '../services/api';
@@ -8,6 +9,8 @@ import NextDestinationSelector from './NextDestinationSelector';
 import LazyImage from './LazyImage';
 import LoadingSpinner from './LoadingSpinner';
 import ModalContainer from './ModalContainer';
+
+const PHOTOS_PER_PAGE = 50; // Initial load count
 
 interface ExtendedAlbumPanelProps extends AlbumPanelProps {
   allAlbums?: Album[];
@@ -41,7 +44,73 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<Photo | null>(null);
+  const [totalPhotos, setTotalPhotos] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const thumbnailGridRef = useRef<HTMLDivElement>(null);
   const { t, language } = useLanguage();
+
+  const loadNextDestination = async () => {
+    if (!album) return;
+
+    try {
+      const destination = await apiClient.getNextDestination(album.id);
+      setNextDestination(destination);
+    } catch (err) {
+      console.error('Failed to load next destination:', err);
+      setNextDestination(null);
+    }
+  };
+
+  const loadPhotos = async (append = false) => {
+    if (!album) return;
+
+    try {
+      if (!append) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
+      if (!append) {
+        // Initial load: try paginated first
+        const result = await apiClient.getAlbumPhotosPaginated(album.id, 0, PHOTOS_PER_PAGE);
+        setPhotos(result.photos.sort((a, b) => a.display_order - b.display_order));
+        setTotalPhotos(result.total);
+      } else if (photos.length < totalPhotos) {
+        // Load more photos
+        const result = await apiClient.getAlbumPhotosPaginated(album.id, photos.length, PHOTOS_PER_PAGE);
+        setPhotos(prev => [...prev, ...result.photos.sort((a, b) => a.display_order - b.display_order)]);
+      }
+    } catch (err) {
+      // Fallback to non-paginated if the endpoint doesn't support it
+      if (!append) {
+        try {
+          const albumPhotos = await apiClient.getAlbumPhotos(album.id);
+          setPhotos(albumPhotos.sort((a, b) => a.display_order - b.display_order));
+          setTotalPhotos(albumPhotos.length);
+        } catch (fallbackErr) {
+          setError(err instanceof Error ? err.message : t('album.loadPhotosFailed'));
+        }
+      } else {
+        setError(err instanceof Error ? err.message : t('album.loadPhotosFailed'));
+      }
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Handle scroll for infinite loading
+  const handleScroll = useCallback(() => {
+    const container = thumbnailGridRef.current;
+    if (!container || isLoadingMore || photos.length >= totalPhotos) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    // Load more when 100px from bottom
+    if (scrollHeight - scrollTop - clientHeight < 100) {
+      loadPhotos(true);
+    }
+  }, [isLoadingMore, photos.length, totalPhotos]);
 
   // Load photos and next destination when album changes
   useEffect(() => {
@@ -56,31 +125,14 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
     }
   }, [album, isOpen]);
 
-  const loadNextDestination = async () => {
-    if (!album) return;
-    
-    try {
-      const destination = await apiClient.getNextDestination(album.id);
-      setNextDestination(destination);
-    } catch (err) {
-      console.error('Failed to load next destination:', err);
-      setNextDestination(null);
-    }
-  };
+  // Add scroll listener for infinite loading
+  useEffect(() => {
+    const container = thumbnailGridRef.current;
+    if (!container) return;
 
-  const loadPhotos = async () => {
-    if (!album) return;
-    
-    try {
-      setIsLoading(true);
-      const albumPhotos = await apiClient.getAlbumPhotos(album.id);
-      setPhotos(albumPhotos.sort((a, b) => a.display_order - b.display_order));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('album.loadPhotosFailed'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
 
   const handleSaveEdit = async () => {
     if (!album) return;
@@ -286,7 +338,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                 <div className="text-red-500 text-center">
                   <div>{error}</div>
                   <button
-                    onClick={loadPhotos}
+                    onClick={() => loadPhotos(false)}
                     className="mt-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
                   >
                     {t('album.retry')}
@@ -393,9 +445,13 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
               {photos.length > 0 && (
                 <div className="mb-4">
                   <h3 className="text-sm font-medium text-gray-700 mb-2">
-                    {t('album.photos')} ({photos.length})
+                    {t('album.photos')} ({totalPhotos > 0 ? `${photos.length} / ${totalPhotos}` : photos.length})
                   </h3>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div
+                    ref={thumbnailGridRef}
+                    className="grid grid-cols-3 gap-2 overflow-y-auto max-h-[300px] pr-1"
+                    style={{ scrollbarWidth: 'thin' }}
+                  >
                     {photos.map((photo, index) => (
                       <div key={photo.id} className="relative group">
                         <button
@@ -424,6 +480,11 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                         </button>
                       </div>
                     ))}
+                    {isLoadingMore && (
+                      <div className="col-span-3 flex justify-center py-2">
+                        <LoadingSpinner size="sm" />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -521,18 +582,19 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
         </div>
       )}
 
-      {/* Photo Upload Modal */}
-      {showPhotoUpload && album && (
+      {/* Photo Upload Modal - use portal to render outside AlbumPanel */}
+      {showPhotoUpload && album && createPortal(
         <PhotoUpload
           albumId={album.id}
           onUploadComplete={handleUploadComplete}
           onClose={() => setShowPhotoUpload(false)}
-          className="z-[60]"
-        />
+          className="z-[70]"
+        />,
+        document.body
       )}
 
-      {/* Next Destination Selector Modal */}
-      {showNextDestinationSelector && album && (
+      {/* Next Destination Selector Modal - use portal to render outside AlbumPanel */}
+      {showNextDestinationSelector && album && createPortal(
         <NextDestinationSelector
           currentAlbum={album}
           allAlbums={allAlbums}
@@ -540,7 +602,8 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
           onClose={() => setShowNextDestinationSelector(false)}
           onDestinationSet={handleDestinationSet}
           onDestinationRemoved={handleDestinationRemoved}
-        />
+        />,
+        document.body
       )}
     </ModalContainer>
   );

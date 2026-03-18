@@ -12,6 +12,15 @@ import type {
   TimeRange
 } from '../types';
 
+// Paginated photos response type
+export interface PaginatedPhotosResult {
+  photos: Photo[];
+  total: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
+}
+
 interface RetryOptions {
   maxRetries: number;
   baseDelay: number;
@@ -249,6 +258,20 @@ class ApiClient {
       ...photo,
       url: this.buildPhotoUrl(photo.url)
     }));
+  }
+
+  async getAlbumPhotosPaginated(albumId: string, offset: number, limit: number): Promise<PaginatedPhotosResult> {
+    const response = await this.requestWithRetry<PaginatedPhotosResult>(
+      `/albums/${albumId}/photos?offset=${offset}&limit=${limit}`
+    );
+    // Add auth token to photo URLs
+    return {
+      ...response,
+      photos: (response.photos || []).map(photo => ({
+        ...photo,
+        url: this.buildPhotoUrl(photo.url)
+      }))
+    };
   }
 
   async uploadPhotos(albumId: string, files: File[]): Promise<Photo[]> {

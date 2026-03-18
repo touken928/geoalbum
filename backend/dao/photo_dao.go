@@ -33,8 +33,8 @@ func (dao *PhotoDAO) GetByAlbumID(albumID string) ([]model.Photo, error) {
 	var photos []model.Photo
 	query := `
 		SELECT id, album_id, filename, file_path, file_size, mime_type, display_order, uploaded_at
-		FROM photos 
-		WHERE album_id = ? 
+		FROM photos
+		WHERE album_id = ?
 		ORDER BY display_order ASC, uploaded_at ASC
 	`
 	err := database.DB.Select(&photos, query, albumID)
@@ -42,6 +42,33 @@ func (dao *PhotoDAO) GetByAlbumID(albumID string) ([]model.Photo, error) {
 		return nil, fmt.Errorf("failed to get photos by album ID: %w", err)
 	}
 	return photos, nil
+}
+
+// GetByAlbumIDPaginated retrieves photos for a specific album with pagination
+func (dao *PhotoDAO) GetByAlbumIDPaginated(albumID string, offset, limit int) ([]model.Photo, int, error) {
+	var photos []model.Photo
+
+	// Get total count
+	var total int
+	countQuery := `SELECT COUNT(*) FROM photos WHERE album_id = ?`
+	err := database.DB.Get(&total, countQuery, albumID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get photo count: %w", err)
+	}
+
+	// Get paginated photos
+	query := `
+		SELECT id, album_id, filename, file_path, file_size, mime_type, display_order, uploaded_at
+		FROM photos
+		WHERE album_id = ?
+		ORDER BY display_order ASC, uploaded_at ASC
+		LIMIT ? OFFSET ?
+	`
+	err = database.DB.Select(&photos, query, albumID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get photos by album ID: %w", err)
+	}
+	return photos, total, nil
 }
 
 // GetByID retrieves a photo by ID

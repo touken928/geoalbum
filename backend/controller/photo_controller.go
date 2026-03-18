@@ -77,7 +77,7 @@ func (ctrl *PhotoController) UploadPhoto(c *gin.Context) {
 	c.JSON(http.StatusCreated, photo)
 }
 
-// GetAlbumPhotos retrieves all photos for an album
+// GetAlbumPhotos retrieves photos for an album with optional pagination
 func (ctrl *PhotoController) GetAlbumPhotos(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -91,9 +91,44 @@ func (ctrl *PhotoController) GetAlbumPhotos(c *gin.Context) {
 	}
 
 	albumID := c.Param("id")
-	photos, err := ctrl.photoService.GetPhotosByAlbumID(albumID, userID)
+
+	// Parse pagination parameters
+	offset := 0
+	limit := 100 // Default limit
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if _, err := fmt.Sscanf(offsetStr, "%d", &offset); err != nil {
+			offset = 0
+		}
+	}
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if _, err := fmt.Sscanf(limitStr, "%d", &limit); err != nil {
+			limit = 100
+		}
+	}
+
+	// If no pagination params, return all photos (backward compatibility)
+	if c.Query("offset") == "" && c.Query("limit") == "" {
+		photos, err := ctrl.photoService.GetPhotosByAlbumID(albumID, userID)
+		if err != nil {
+			logrus.WithError(err).Error("Failed to get album photos")
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": map[string]interface{}{
+					"code":    "PHOTOS_RETRIEVAL_FAILED",
+					"message": "Failed to retrieve photos",
+				},
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"photos": photos,
+		})
+		return
+	}
+
+	// Return paginated results
+	result, err := ctrl.photoService.GetPhotosByAlbumIDPaginated(albumID, userID, offset, limit)
 	if err != nil {
-		logrus.WithError(err).Error("Failed to get album photos")
+		logrus.WithError(err).Error("Failed to get album photos (paginated)")
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": map[string]interface{}{
 				"code":    "PHOTOS_RETRIEVAL_FAILED",
@@ -103,9 +138,7 @@ func (ctrl *PhotoController) GetAlbumPhotos(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"photos": photos,
-	})
+	c.JSON(http.StatusOK, result)
 }
 
 // DeletePhoto deletes a photo

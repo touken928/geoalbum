@@ -126,6 +126,71 @@ func (s *PhotoService) GetPhotosByAlbumID(albumID, userID string) ([]model.Photo
 	return photos, nil
 }
 
+// PaginatedPhotosResult represents the result of a paginated photo query
+type PaginatedPhotosResult struct {
+	Photos     []model.Photo `json:"photos"`
+	Total      int           `json:"total"`
+	Offset     int           `json:"offset"`
+	Limit      int           `json:"limit"`
+	HasMore    bool          `json:"has_more"`
+}
+
+// GetPhotosByAlbumIDPaginated retrieves photos for an album with pagination
+func (s *PhotoService) GetPhotosByAlbumIDPaginated(albumID, userID string, offset, limit int) (*PaginatedPhotosResult, error) {
+	// Verify album exists and belongs to user
+	album, err := s.albumDAO.GetByID(albumID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get album: %w", err)
+	}
+	if album == nil {
+		return nil, fmt.Errorf("album not found")
+	}
+	if album.UserID != userID {
+		return nil, fmt.Errorf("access denied: album does not belong to user")
+	}
+
+	photos, total, err := s.photoDAO.GetByAlbumIDPaginated(albumID, offset, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get photos: %w", err)
+	}
+
+	// Set URLs for photos
+	for i := range photos {
+		photos[i].URL = fmt.Sprintf("/api/photos/%s/file", photos[i].ID)
+	}
+
+	return &PaginatedPhotosResult{
+		Photos:  photos,
+		Total:   total,
+		Offset:  offset,
+		Limit:   limit,
+		HasMore: offset+len(photos) < total,
+	}, nil
+}
+
+// GetPhotoCount returns the total number of photos in an album
+func (s *PhotoService) GetPhotoCount(albumID, userID string) (int, error) {
+	// Verify album exists and belongs to user
+	album, err := s.albumDAO.GetByID(albumID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get album: %w", err)
+	}
+	if album == nil {
+		return 0, fmt.Errorf("album not found")
+	}
+	if album.UserID != userID {
+		return 0, fmt.Errorf("access denied: album does not belong to user")
+	}
+
+	var total int
+	countQuery := `SELECT COUNT(*) FROM photos WHERE album_id = ?`
+	err = database.DB.Get(&total, countQuery, albumID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get photo count: %w", err)
+	}
+	return total, nil
+}
+
 // GetPhotoByID retrieves a photo by ID and verifies user access
 func (s *PhotoService) GetPhotoByID(photoID, userID string) (*model.Photo, error) {
 	photo, err := s.photoDAO.GetByID(photoID)

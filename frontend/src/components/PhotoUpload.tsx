@@ -187,11 +187,11 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
   const allSuccess = uploadFiles.length > 0 && uploadFiles.every(f => f.status === 'success');
 
   return (
-    <ModalContainer 
-      isOpen={true} 
-      onClose={onClose} 
+    <ModalContainer
+      isOpen={true}
+      onClose={onClose}
       variant="upload"
-      size="lg"
+      size="full"
       className={className}
     >
       <div className="flex flex-col h-full">
@@ -207,7 +207,7 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-4 flex-1 overflow-y-auto">
+        <div className="p-4 flex-1 overflow-y-auto min-h-0">
           {/* Drop Zone */}
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
