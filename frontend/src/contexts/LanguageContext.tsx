@@ -86,6 +86,8 @@ const translations = {
     'album.deletePasswordPlaceholder': '输入 delete 确认',
     'album.deleting': '删除中...',
     'album.confirmDelete': '确认删除',
+    'album.download': '下载',
+    'album.downloadFailed': '下载失败',
     
     // Common
     'common.error': '错误',
@@ -167,6 +169,8 @@ const translations = {
     'album.deletePasswordPlaceholder': 'Enter "delete" to confirm',
     'album.deleting': 'Deleting...',
     'album.confirmDelete': 'Confirm Delete',
+    'album.download': 'Download',
+    'album.downloadFailed': 'Download failed',
     
     // Common
     'common.error': 'Error',

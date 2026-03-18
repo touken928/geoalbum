@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Edit3, Upload, ChevronLeft, ChevronRight, MapPin, Calendar, Camera, Route, Trash2 } from 'lucide-react';
+import { X, Edit3, Upload, ChevronLeft, ChevronRight, MapPin, Calendar, Camera, Route, Trash2, Download } from 'lucide-react';
 import type { Photo, AlbumPanelProps, Album } from '../types';
 import { apiClient } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -133,6 +133,39 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
+
+  // Handle photo download
+  const handleDownloadPhoto = async (photo: typeof currentPhoto) => {
+    if (!photo) return;
+
+    try {
+      // Get the auth token
+      const token = apiClient.getAuthToken();
+      const url = new URL(photo.url, window.location.origin);
+      if (token) {
+        url.searchParams.set('token', token);
+      }
+
+      // Fetch the image as blob
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error('Failed to download');
+
+      const blob = await response.blob();
+
+      // Create download link
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = photo.filename || 'photo.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Download failed:', err);
+      setError(err instanceof Error ? err.message : t('album.downloadFailed'));
+    }
+  };
 
   const handleSaveEdit = async () => {
     if (!album) return;
@@ -386,6 +419,15 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-3 py-1 bg-black bg-opacity-50 text-white rounded-full text-sm">
                       {currentPhotoIndex + 1} / {photos.length}
                     </div>
+
+                    {/* Download Button */}
+                    <button
+                      onClick={() => handleDownloadPhoto(currentPhoto)}
+                      className="absolute bottom-4 right-4 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70"
+                      title={t('album.download')}
+                    >
+                      <Download className="w-5 h-5" />
+                    </button>
                   </>
                 )}
               </>
