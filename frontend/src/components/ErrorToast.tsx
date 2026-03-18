@@ -1,6 +1,6 @@
 import React from 'react';
-import { useError } from '../contexts/ErrorContext';
-import type { AppError } from '../contexts/ErrorContext';
+import { useError } from '../contexts/useError';
+import type { AppError } from '../contexts/errorContext';
 
 const ErrorToast: React.FC = () => {
   const { errors, removeError } = useError();

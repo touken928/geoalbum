@@ -65,6 +65,11 @@ func Initialize() error {
 		return fmt.Errorf("failed to create tables: %w", err)
 	}
 
+	// Ensure spatial index (R-tree) exists and is backfilled
+	if err := ensureAlbumSpatialIndex(); err != nil {
+		return fmt.Errorf("failed to ensure album spatial index: %w", err)
+	}
+
 	// Initialize blob store for photo storage
 	blobPath := filepath.Join(dataDir, "photos.db")
 	if err := InitBlobStore(blobPath); err != nil {
@@ -73,6 +78,115 @@ func Initialize() error {
 	logging.Info("Blob store initialized for photo storage")
 
 	logging.Info("Database tables created successfully")
+	return nil
+}
+
+// ensureAlbumSpatialIndex creates and backfills the album spatial index (R-tree).
+//
+// Implementation notes:
+// - SQLite R-tree requires an integer primary key, but albums use TEXT UUIDs.
+// - We maintain an auxiliary mapping table (album_spatial) with an integer spatial_id.
+// - Triggers keep album_spatial + albums_rtree consistent with albums table changes.
+func ensureAlbumSpatialIndex() error {
+	if DB == nil {
+		return fmt.Errorf("database connection is nil")
+	}
+
+	stmts := []string{
+		// Mapping table: album_id (TEXT) -> spatial_id (INTEGER)
+		`
+		CREATE TABLE IF NOT EXISTS album_spatial (
+			spatial_id INTEGER PRIMARY KEY AUTOINCREMENT,
+			album_id   TEXT NOT NULL UNIQUE,
+			user_id    TEXT NOT NULL,
+			longitude  REAL NOT NULL,
+			latitude   REAL NOT NULL,
+			FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
+		);
+		`,
+		"CREATE INDEX IF NOT EXISTS idx_album_spatial_user_id ON album_spatial(user_id);",
+		"CREATE INDEX IF NOT EXISTS idx_album_spatial_album_id ON album_spatial(album_id);",
+
+		// R-tree virtual table (lon/lat bbox)
+		`
+		CREATE VIRTUAL TABLE IF NOT EXISTS albums_rtree USING rtree(
+			id,
+			min_lon, max_lon,
+			min_lat, max_lat
+		);
+		`,
+
+		// Triggers to maintain mapping + rtree in sync
+		"DROP TRIGGER IF EXISTS trg_albums_spatial_insert;",
+		"DROP TRIGGER IF EXISTS trg_albums_spatial_update_location;",
+		"DROP TRIGGER IF EXISTS trg_albums_spatial_delete;",
+
+		`
+		CREATE TRIGGER trg_albums_spatial_insert
+		AFTER INSERT ON albums
+		BEGIN
+			INSERT OR IGNORE INTO album_spatial(album_id, user_id, longitude, latitude)
+			VALUES (NEW.id, NEW.user_id, NEW.longitude, NEW.latitude);
+
+			INSERT OR REPLACE INTO albums_rtree(id, min_lon, max_lon, min_lat, max_lat)
+			VALUES (
+				(SELECT spatial_id FROM album_spatial WHERE album_id = NEW.id),
+				NEW.longitude, NEW.longitude,
+				NEW.latitude, NEW.latitude
+			);
+		END;
+		`,
+		`
+		CREATE TRIGGER trg_albums_spatial_update_location
+		AFTER UPDATE OF latitude, longitude ON albums
+		BEGIN
+			UPDATE album_spatial
+			SET longitude = NEW.longitude, latitude = NEW.latitude
+			WHERE album_id = NEW.id;
+
+			INSERT OR REPLACE INTO albums_rtree(id, min_lon, max_lon, min_lat, max_lat)
+			VALUES (
+				(SELECT spatial_id FROM album_spatial WHERE album_id = NEW.id),
+				NEW.longitude, NEW.longitude,
+				NEW.latitude, NEW.latitude
+			);
+		END;
+		`,
+		`
+		CREATE TRIGGER trg_albums_spatial_delete
+		AFTER DELETE ON albums
+		BEGIN
+			DELETE FROM albums_rtree
+			WHERE id = (SELECT spatial_id FROM album_spatial WHERE album_id = OLD.id);
+			DELETE FROM album_spatial WHERE album_id = OLD.id;
+		END;
+		`,
+	}
+
+	for _, stmt := range stmts {
+		if _, err := DB.Exec(stmt); err != nil {
+			return fmt.Errorf("failed to apply spatial index statement: %w", err)
+		}
+	}
+
+	// Backfill mapping table for existing albums
+	if _, err := DB.Exec(`
+		INSERT OR IGNORE INTO album_spatial(album_id, user_id, longitude, latitude)
+		SELECT id, user_id, longitude, latitude
+		FROM albums
+	`); err != nil {
+		return fmt.Errorf("failed to backfill album_spatial: %w", err)
+	}
+
+	// Backfill rtree entries that don't exist yet
+	if _, err := DB.Exec(`
+		INSERT OR IGNORE INTO albums_rtree(id, min_lon, max_lon, min_lat, max_lat)
+		SELECT spatial_id, longitude, longitude, latitude, latitude
+		FROM album_spatial
+	`); err != nil {
+		return fmt.Errorf("failed to backfill albums_rtree: %w", err)
+	}
+
 	return nil
 }
 

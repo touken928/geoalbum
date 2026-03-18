@@ -2,10 +2,11 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Upload, X, AlertCircle, CheckCircle, Image as ImageIcon } from 'lucide-react';
 import { apiClient } from '../services/api';
 import ModalContainer from './ModalContainer';
+import type { Photo } from '../types';
 
 interface PhotoUploadProps {
   albumId: string;
-  onUploadComplete: (uploadedPhotos: any[]) => void;
+  onUploadComplete: (uploadedPhotos: Photo[]) => void;
   onClose: () => void;
   className?: string;
 }

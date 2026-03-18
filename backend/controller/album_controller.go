@@ -38,6 +38,22 @@ type GetAlbumsQuery struct {
 	EndDate   *time.Time `form:"end_date" time_format:"2006-01-02T15:04:05Z07:00"`
 }
 
+type GetAlbumsViewportQuery struct {
+	West  float64 `form:"west" binding:"required,min=-180,max=180"`
+	South float64 `form:"south" binding:"required,min=-90,max=90"`
+	East  float64 `form:"east" binding:"required,min=-180,max=180"`
+	North float64 `form:"north" binding:"required,min=-90,max=90"`
+	Limit int     `form:"limit" binding:"omitempty,min=1,max=20000"`
+}
+
+type GetAlbumClustersQuery struct {
+	West     float64 `form:"west" binding:"required,min=-180,max=180"`
+	South    float64 `form:"south" binding:"required,min=-90,max=90"`
+	East     float64 `form:"east" binding:"required,min=-180,max=180"`
+	North    float64 `form:"north" binding:"required,min=-90,max=90"`
+	GridSize int     `form:"grid" binding:"omitempty,min=2,max=256"`
+}
+
 // Response helpers
 func successResponse(c *gin.Context, statusCode int, data interface{}) {
 	c.JSON(statusCode, gin.H{"success": true, "data": data})
@@ -142,6 +158,71 @@ func (ctrl *AlbumController) GetAlbums(c *gin.Context) {
 	}
 
 	successResponse(c, http.StatusOK, response)
+}
+
+// GetAlbumsViewport retrieves albums within a bounding box (viewport query).
+func (ctrl *AlbumController) GetAlbumsViewport(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		unauthorizedErrorResponse(c, "UNAUTHORIZED", "User not authenticated")
+		return
+	}
+
+	var query GetAlbumsViewportQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		validationErrorResponse(c, err.Error())
+		return
+	}
+
+	// Basic bbox sanity check
+	if query.East <= query.West || query.North <= query.South {
+		validationErrorResponse(c, "Invalid bbox: east must be > west and north must be > south")
+		return
+	}
+
+	albums, err := ctrl.albumService.GetAlbumsByUserIDInBBox(userID, query.West, query.South, query.East, query.North, query.Limit)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to get albums in viewport")
+		internalServerErrorResponse(c, "ALBUMS_VIEWPORT_FAILED", "Failed to retrieve albums in viewport")
+		return
+	}
+
+	successResponse(c, http.StatusOK, gin.H{
+		"albums": albums,
+		"count":  len(albums),
+	})
+}
+
+// GetAlbumClusters retrieves clustered points within a bounding box.
+func (ctrl *AlbumController) GetAlbumClusters(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		unauthorizedErrorResponse(c, "UNAUTHORIZED", "User not authenticated")
+		return
+	}
+
+	var query GetAlbumClustersQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		validationErrorResponse(c, err.Error())
+		return
+	}
+
+	if query.East <= query.West || query.North <= query.South {
+		validationErrorResponse(c, "Invalid bbox: east must be > west and north must be > south")
+		return
+	}
+
+	clusters, err := ctrl.albumService.GetAlbumClustersByUserIDInBBox(userID, query.West, query.South, query.East, query.North, query.GridSize)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to get album clusters in viewport")
+		internalServerErrorResponse(c, "ALBUMS_CLUSTER_FAILED", "Failed to retrieve clustered albums")
+		return
+	}
+
+	successResponse(c, http.StatusOK, gin.H{
+		"clusters": clusters,
+		"count":    len(clusters),
+	})
 }
 
 // GetAlbum retrieves a specific album

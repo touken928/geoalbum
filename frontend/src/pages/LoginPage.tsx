@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Navigate, useLocation, Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');

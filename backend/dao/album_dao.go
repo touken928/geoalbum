@@ -33,9 +33,16 @@ func (dao *AlbumDAO) Create(album *model.Album) error {
 func (dao *AlbumDAO) GetByUserID(userID string) ([]model.Album, error) {
 	var albums []model.Album
 	query := `
-		SELECT id, user_id, title, description, latitude, longitude, created_at, updated_at
-		FROM albums 
-		WHERE user_id = ? 
+		SELECT
+			a.id, a.user_id, a.title, a.description, a.latitude, a.longitude, a.created_at, a.updated_at,
+			COALESCE(pc.photo_count, 0) AS photo_count
+		FROM albums a
+		LEFT JOIN (
+			SELECT album_id, COUNT(*) AS photo_count
+			FROM photos
+			GROUP BY album_id
+		) pc ON pc.album_id = a.id
+		WHERE a.user_id = ?
 		ORDER BY created_at DESC
 	`
 	err := database.DB.Select(&albums, query, userID)
@@ -53,25 +60,46 @@ func (dao *AlbumDAO) GetByUserIDAndTimeRange(userID string, startDate, endDate *
 
 	if startDate != nil && endDate != nil {
 		query = `
-			SELECT id, user_id, title, description, latitude, longitude, created_at, updated_at
-			FROM albums 
-			WHERE user_id = ? AND created_at >= ? AND created_at <= ?
+			SELECT
+				a.id, a.user_id, a.title, a.description, a.latitude, a.longitude, a.created_at, a.updated_at,
+				COALESCE(pc.photo_count, 0) AS photo_count
+			FROM albums a
+			LEFT JOIN (
+				SELECT album_id, COUNT(*) AS photo_count
+				FROM photos
+				GROUP BY album_id
+			) pc ON pc.album_id = a.id
+			WHERE a.user_id = ? AND a.created_at >= ? AND a.created_at <= ?
 			ORDER BY created_at DESC
 		`
 		args = []interface{}{userID, startDate, endDate}
 	} else if startDate != nil {
 		query = `
-			SELECT id, user_id, title, description, latitude, longitude, created_at, updated_at
-			FROM albums 
-			WHERE user_id = ? AND created_at >= ?
+			SELECT
+				a.id, a.user_id, a.title, a.description, a.latitude, a.longitude, a.created_at, a.updated_at,
+				COALESCE(pc.photo_count, 0) AS photo_count
+			FROM albums a
+			LEFT JOIN (
+				SELECT album_id, COUNT(*) AS photo_count
+				FROM photos
+				GROUP BY album_id
+			) pc ON pc.album_id = a.id
+			WHERE a.user_id = ? AND a.created_at >= ?
 			ORDER BY created_at DESC
 		`
 		args = []interface{}{userID, startDate}
 	} else if endDate != nil {
 		query = `
-			SELECT id, user_id, title, description, latitude, longitude, created_at, updated_at
-			FROM albums 
-			WHERE user_id = ? AND created_at <= ?
+			SELECT
+				a.id, a.user_id, a.title, a.description, a.latitude, a.longitude, a.created_at, a.updated_at,
+				COALESCE(pc.photo_count, 0) AS photo_count
+			FROM albums a
+			LEFT JOIN (
+				SELECT album_id, COUNT(*) AS photo_count
+				FROM photos
+				GROUP BY album_id
+			) pc ON pc.album_id = a.id
+			WHERE a.user_id = ? AND a.created_at <= ?
 			ORDER BY created_at DESC
 		`
 		args = []interface{}{userID, endDate}
@@ -126,4 +154,123 @@ func (dao *AlbumDAO) Delete(id, userID string) error {
 		return fmt.Errorf("failed to delete album: %w", err)
 	}
 	return nil
+}
+
+// GetByUserIDInBBox returns albums within a bounding box, using the spatial index.
+// west/east are longitude degrees, south/north are latitude degrees.
+func (dao *AlbumDAO) GetByUserIDInBBox(userID string, west, south, east, north float64, limit int) ([]model.Album, error) {
+	var albums []model.Album
+	if limit <= 0 {
+		limit = 5000
+	}
+
+	query := `
+		SELECT
+			a.id, a.user_id, a.title, a.description, a.latitude, a.longitude, a.created_at, a.updated_at,
+			COALESCE(pc.photo_count, 0) AS photo_count
+		FROM albums_rtree r
+		JOIN album_spatial s ON s.spatial_id = r.id
+		JOIN albums a ON a.id = s.album_id
+		LEFT JOIN (
+			SELECT album_id, COUNT(*) AS photo_count
+			FROM photos
+			GROUP BY album_id
+		) pc ON pc.album_id = a.id
+		WHERE
+			s.user_id = ?
+			AND r.min_lon <= ? AND r.max_lon >= ?
+			AND r.min_lat <= ? AND r.max_lat >= ?
+		ORDER BY a.created_at DESC
+		LIMIT ?
+	`
+
+	err := database.DB.Select(&albums, query, userID, east, west, north, south, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get albums in bbox: %w", err)
+	}
+	return albums, nil
+}
+
+type AlbumClusterRow struct {
+	Longitude float64 `db:"longitude" json:"longitude"`
+	Latitude  float64 `db:"latitude" json:"latitude"`
+	Count     int     `db:"count" json:"count"`
+	West      float64 `db:"west" json:"west"`
+	South     float64 `db:"south" json:"south"`
+	East      float64 `db:"east" json:"east"`
+	North     float64 `db:"north" json:"north"`
+}
+
+// GetClustersByUserIDInBBox aggregates albums into grid clusters within a bounding box.
+func (dao *AlbumDAO) GetClustersByUserIDInBBox(userID string, west, south, east, north float64, gridSize int) ([]AlbumClusterRow, error) {
+	var clusters []AlbumClusterRow
+	if gridSize <= 0 {
+		gridSize = 64
+	}
+	if gridSize > 256 {
+		gridSize = 256
+	}
+
+	lonSpan := east - west
+	latSpan := north - south
+	if lonSpan <= 0 || latSpan <= 0 {
+		return []AlbumClusterRow{}, nil
+	}
+
+	cellLon := lonSpan / float64(gridSize)
+	cellLat := latSpan / float64(gridSize)
+	// Avoid division by zero for pathological bbox
+	if cellLon <= 0 {
+		cellLon = 1e-9
+	}
+	if cellLat <= 0 {
+		cellLat = 1e-9
+	}
+
+	query := `
+		WITH candidates AS (
+			SELECT a.longitude AS lon, a.latitude AS lat
+			FROM albums_rtree r
+			JOIN album_spatial s ON s.spatial_id = r.id
+			JOIN albums a ON a.id = s.album_id
+			WHERE
+				s.user_id = ?
+				AND r.min_lon <= ? AND r.max_lon >= ?
+				AND r.min_lat <= ? AND r.max_lat >= ?
+		)
+		, binned AS (
+			SELECT
+				lon,
+				lat,
+				CAST((lon - ?) / ? AS INTEGER) AS gx,
+				CAST((lat - ?) / ? AS INTEGER) AS gy
+			FROM candidates
+		)
+		SELECT
+			AVG(lon) AS longitude,
+			AVG(lat) AS latitude,
+			COUNT(*) AS count,
+			(? + (? * gx)) AS west,
+			(? + (? * gy)) AS south,
+			(? + (? * (gx + 1))) AS east,
+			(? + (? * (gy + 1))) AS north
+		FROM binned
+		GROUP BY gx, gy
+	`
+
+	err := database.DB.Select(&clusters, query,
+		userID,
+		east, west, north, south,
+		// binned gx/gy
+		west, cellLon, south, cellLat,
+		// bbox reconstruction
+		west, cellLon,
+		south, cellLat,
+		west, cellLon,
+		south, cellLat,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get album clusters in bbox: %w", err)
+	}
+	return clusters, nil
 }

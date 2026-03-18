@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useError } from '../contexts/ErrorContext';
+import { useError } from '../contexts/useError';
 
 interface UseApiState<T> {
   data: T | null;
@@ -48,7 +48,7 @@ export const useApi = <T>(
 
   useEffect(() => {
     if (options.immediate) {
-      execute();
+      queueMicrotask(() => execute());
     }
   }, [execute, options.immediate]);
 

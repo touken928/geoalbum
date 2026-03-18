@@ -20,6 +20,23 @@ export interface Album {
   photos?: Photo[];
 }
 
+export interface AlbumCluster {
+  longitude: number;
+  latitude: number;
+  count: number;
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
+
+export interface BBox {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
+
 export interface Photo {
   id: string;
   album_id: string;
@@ -88,7 +105,7 @@ export interface ApiError {
   error: {
     code: string;
     message: string;
-    details?: Record<string, any>;
+    details?: Record<string, unknown>;
   };
 }
 
@@ -106,6 +123,8 @@ export interface AuthContextType {
 // Map component props
 export interface MapComponentProps {
   albums: Album[];
+  clusters?: AlbumCluster[];
+  onViewportChange?: (bbox: BBox, cameraHeight: number) => void;
   selectedTimeRange?: TimeRange;
   onAlbumClick: (album: Album) => void;
   onMapClick: (coordinates: [number, number]) => void;

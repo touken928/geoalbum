@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { ErrorProvider } from './contexts/ErrorContext';
+import { AuthProvider } from './contexts/AuthProvider';
+import { ErrorProvider } from './contexts/ErrorProvider';
 import { LanguageProvider } from './contexts/LanguageContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import ErrorToast from './components/ErrorToast';

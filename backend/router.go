@@ -69,6 +69,8 @@ func Register(r *gin.Engine) {
 			{
 				albums.POST("", albumController.CreateAlbum)
 				albums.GET("", albumController.GetAlbums)
+				albums.GET("/viewport", albumController.GetAlbumsViewport)
+				albums.GET("/clusters", albumController.GetAlbumClusters)
 				albums.GET("/:id", albumController.GetAlbum)
 				albums.PUT("/:id", albumController.UpdateAlbum)
 				albums.DELETE("/:id", albumController.DeleteAlbum)

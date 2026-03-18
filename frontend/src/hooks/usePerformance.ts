@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 interface PerformanceMetrics {
   startTime: number;
@@ -80,10 +80,12 @@ export const usePerformance = (
  */
 export const useRenderPerformance = (componentName: string) => {
   const renderCountRef = useRef(0);
+  const [renderCount, setRenderCount] = useState(0);
   const { startMeasure, endMeasure } = usePerformance(`Render:${componentName}`);
 
   useEffect(() => {
     renderCountRef.current += 1;
+    setRenderCount(renderCountRef.current);
     const renderId = `render-${renderCountRef.current}`;
     
     startMeasure(renderId);
@@ -99,7 +101,7 @@ export const useRenderPerformance = (componentName: string) => {
   });
 
   return {
-    renderCount: renderCountRef.current
+    renderCount
   };
 };
 

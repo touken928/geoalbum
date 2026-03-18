@@ -23,7 +23,6 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
   isOpen,
   onClose,
   onEdit,
-  onPhotoUpload: _onPhotoUpload,
   onSetNextDestination,
   allAlbums = [],
   onAlbumDeleted,
@@ -88,7 +87,7 @@ const AlbumPanel: React.FC<ExtendedAlbumPanelProps> = ({
           const albumPhotos = await apiClient.getAlbumPhotos(album.id);
           setPhotos(albumPhotos.sort((a, b) => a.display_order - b.display_order));
           setTotalPhotos(albumPhotos.length);
-        } catch (fallbackErr) {
+        } catch {
           setError(err instanceof Error ? err.message : t('album.loadPhotosFailed'));
         }
       } else {

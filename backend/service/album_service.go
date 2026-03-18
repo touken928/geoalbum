@@ -75,15 +75,6 @@ func (s *AlbumService) GetAlbumsByUserID(userID string) ([]model.Album, error) {
 		return nil, fmt.Errorf("failed to get albums: %w", err)
 	}
 
-	// Add photo count for each album
-	for i := range albums {
-		photos, err := s.photoDAO.GetByAlbumID(albums[i].ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get photo count for album %s: %w", albums[i].ID, err)
-		}
-		albums[i].PhotoCount = len(photos)
-	}
-
 	return albums, nil
 }
 
@@ -92,15 +83,6 @@ func (s *AlbumService) GetAlbumsByUserIDAndTimeRange(userID string, startDate, e
 	albums, err := s.albumDAO.GetByUserIDAndTimeRange(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get albums by time range: %w", err)
-	}
-
-	// Add photo count for each album
-	for i := range albums {
-		photos, err := s.photoDAO.GetByAlbumID(albums[i].ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get photo count for album %s: %w", albums[i].ID, err)
-		}
-		albums[i].PhotoCount = len(photos)
 	}
 
 	return albums, nil
@@ -128,6 +110,47 @@ func (s *AlbumService) GetAlbumByID(id, userID string) (*model.Album, error) {
 	album.PhotoCount = len(photos)
 
 	return album, nil
+}
+
+// GetAlbumsByUserIDInBBox returns albums within a bounding box (viewport query).
+func (s *AlbumService) GetAlbumsByUserIDInBBox(userID string, west, south, east, north float64, limit int) ([]model.Album, error) {
+	albums, err := s.albumDAO.GetByUserIDInBBox(userID, west, south, east, north, limit)
+	if err != nil {
+		return nil, err
+	}
+	return albums, nil
+}
+
+// AlbumCluster represents a clustered group of albums.
+type AlbumCluster struct {
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Count     int     `json:"count"`
+	West      float64 `json:"west"`
+	South     float64 `json:"south"`
+	East      float64 `json:"east"`
+	North     float64 `json:"north"`
+}
+
+// GetAlbumClustersByUserIDInBBox returns grid-clustered albums within a bounding box.
+func (s *AlbumService) GetAlbumClustersByUserIDInBBox(userID string, west, south, east, north float64, gridSize int) ([]AlbumCluster, error) {
+	rows, err := s.albumDAO.GetClustersByUserIDInBBox(userID, west, south, east, north, gridSize)
+	if err != nil {
+		return nil, err
+	}
+	clusters := make([]AlbumCluster, 0, len(rows))
+	for _, r := range rows {
+		clusters = append(clusters, AlbumCluster{
+			Longitude: r.Longitude,
+			Latitude:  r.Latitude,
+			Count:     r.Count,
+			West:      r.West,
+			South:     r.South,
+			East:      r.East,
+			North:     r.North,
+		})
+	}
+	return clusters, nil
 }
 
 // UpdateAlbum updates an album

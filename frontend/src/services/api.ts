@@ -1,5 +1,6 @@
 import type {
   Album,
+  AlbumCluster,
   Photo,
   Path,
   LoginRequest,
@@ -9,7 +10,8 @@ import type {
   UpdateAlbumRequest,
   CreatePathRequest,
   ApiError,
-  TimeRange
+  TimeRange,
+  BBox
 } from '../types';
 
 // Paginated photos response type
@@ -209,6 +211,34 @@ class ApiClient {
     return response.data.albums || [];
   }
 
+  async getAlbumsViewport(bbox: BBox, limit?: number): Promise<Album[]> {
+    const params = new URLSearchParams();
+    params.append('west', bbox.west.toString());
+    params.append('south', bbox.south.toString());
+    params.append('east', bbox.east.toString());
+    params.append('north', bbox.north.toString());
+    if (limit) params.append('limit', limit.toString());
+
+    const response = await this.requestWithRetry<{ success: boolean; data: { albums: Album[] } }>(
+      `/albums/viewport?${params.toString()}`
+    );
+    return response.data.albums || [];
+  }
+
+  async getAlbumClusters(bbox: BBox, grid?: number): Promise<AlbumCluster[]> {
+    const params = new URLSearchParams();
+    params.append('west', bbox.west.toString());
+    params.append('south', bbox.south.toString());
+    params.append('east', bbox.east.toString());
+    params.append('north', bbox.north.toString());
+    if (grid) params.append('grid', grid.toString());
+
+    const response = await this.requestWithRetry<{ success: boolean; data: { clusters: AlbumCluster[] } }>(
+      `/albums/clusters?${params.toString()}`
+    );
+    return response.data.clusters || [];
+  }
+
   async getAlbum(id: string): Promise<Album> {
     const response = await this.requestWithRetry<{ success: boolean; data: Album }>(`/albums/${id}`);
     return response.data;
@@ -350,7 +380,7 @@ class ApiClient {
     try {
       const response = await this.requestWithRetry<{ success: boolean; data: { next_destination: Album | null } }>(`/albums/${albumId}/next-destination`);
       return response.data.next_destination;
-    } catch (error) {
+    } catch {
       // Return null if no next destination exists
       return null;
     }

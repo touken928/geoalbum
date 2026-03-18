@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
-import type { MapComponentProps, Album } from '../types';
+import type { MapComponentProps, Album, AlbumCluster, BBox } from '../types';
 import CoordinateDisplay from './CoordinateDisplay';
 
 // 禁用 Cesium Ion
@@ -11,6 +11,7 @@ Cesium.Ion.defaultAccessToken = '';
 declare module 'cesium' {
   interface Entity {
     albumData?: Album;
+    clusterData?: AlbumCluster;
   }
 }
 
@@ -204,6 +205,8 @@ const getArrowTexture = (): string => {
 
 const CesiumMapComponent: React.FC<MapComponentProps> = ({
   albums,
+  clusters = [],
+  onViewportChange,
   selectedTimeRange,
   onAlbumClick,
   onMapClick,
@@ -222,12 +225,14 @@ const CesiumMapComponent: React.FC<MapComponentProps> = ({
   const isCreateModeRef = useRef(isCreateMode);
   const onMapClickRef = useRef(onMapClick);
   const onAlbumClickRef = useRef(onAlbumClick);
+  const onViewportChangeRef = useRef(onViewportChange);
   const [mouseCoords, setMouseCoords] = useState<[number, number] | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => { isCreateModeRef.current = isCreateMode; }, [isCreateMode]);
   useEffect(() => { onMapClickRef.current = onMapClick; }, [onMapClick]);
   useEffect(() => { onAlbumClickRef.current = onAlbumClick; }, [onAlbumClick]);
+  useEffect(() => { onViewportChangeRef.current = onViewportChange; }, [onViewportChange]);
 
   const filteredAlbums = React.useMemo(() => {
     if (!selectedTimeRange) return albums;
@@ -314,7 +319,8 @@ const CesiumMapComponent: React.FC<MapComponentProps> = ({
         cluster.billboard.image = getClusterImage(clusteredEntities.length);
         cluster.billboard.width = 52;
         cluster.billboard.height = 52;
-        (cluster.billboard as any).id = clusteredEntities;
+        // Cesium attaches a non-typed `id` field on billboard for picking; avoid `any` for lint.
+        (cluster.billboard as unknown as { id?: unknown }).id = clusteredEntities;
       }
     );
 
@@ -341,6 +347,19 @@ const CesiumMapComponent: React.FC<MapComponentProps> = ({
         const pr = dataSource.clustering.pixelRange;
         dataSource.clustering.pixelRange = pr + 0.1;
         dataSource.clustering.pixelRange = pr;
+      }
+
+      // Viewport callback (debounced by caller)
+      if (onViewportChangeRef.current) {
+        const rect = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
+        if (rect) {
+          const west = Cesium.Math.toDegrees(rect.west);
+          const south = Cesium.Math.toDegrees(rect.south);
+          const east = Cesium.Math.toDegrees(rect.east);
+          const north = Cesium.Math.toDegrees(rect.north);
+          const bbox: BBox = { west, south, east, north };
+          onViewportChangeRef.current(bbox, viewer.camera.positionCartographic.height);
+        }
       }
     });
 
@@ -370,8 +389,22 @@ const CesiumMapComponent: React.FC<MapComponentProps> = ({
               duration: 1.0,
             });
           }
-        } else if (id instanceof Cesium.Entity && id.albumData) {
-          onAlbumClickRef.current(id.albumData);
+        } else if (id instanceof Cesium.Entity) {
+          if (id.albumData) {
+            onAlbumClickRef.current(id.albumData);
+          } else if (id.clusterData) {
+            // Zoom to the cluster grid cell bbox
+            viewer.camera.flyTo({
+              destination: Cesium.Rectangle.fromDegrees(
+                id.clusterData.west,
+                id.clusterData.south,
+                id.clusterData.east,
+                id.clusterData.north
+              ),
+              orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
+              duration: 0.7,
+            });
+          }
         }
       } else if (isCreateModeRef.current) {
         const ray = viewer.camera.getPickRay(movement.position);
@@ -398,7 +431,8 @@ const CesiumMapComponent: React.FC<MapComponentProps> = ({
       viewer.canvas.style.cursor = Cesium.defined(pickedObject) ? 'pointer' : (isCreateModeRef.current ? 'crosshair' : 'grab');
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-    setIsReady(true);
+    // Avoid setState directly in effect body (lint rule)
+    queueMicrotask(() => setIsReady(true));
 
     return () => {
       if (clusterListenerRef.current) clusterListenerRef.current();
@@ -426,6 +460,27 @@ const CesiumMapComponent: React.FC<MapComponentProps> = ({
     const dataSource = dataSourceRef.current;
     dataSource.entities.removeAll();
 
+    // When clusters are provided, render clusters directly (disable Cesium clustering)
+    if (clusters.length > 0) {
+      dataSource.clustering.enabled = false;
+      clusters.forEach((cluster) => {
+        const entity = dataSource.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(cluster.longitude, cluster.latitude),
+          billboard: {
+            image: getClusterImage(cluster.count),
+            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            width: 52,
+            height: 52,
+          },
+        });
+        entity.clusterData = cluster;
+      });
+      return;
+    }
+
+    dataSource.clustering.enabled = true;
     filteredAlbums.forEach((album) => {
       const photoCount = album.photo_count || 0;
       const entity = dataSource.entities.add({
@@ -441,7 +496,7 @@ const CesiumMapComponent: React.FC<MapComponentProps> = ({
       });
       entity.albumData = album;
     });
-  }, [filteredAlbums, isReady]);
+  }, [filteredAlbums, clusters, isReady]);
 
   // 更新路径 - 使用 Primitive 和流动材质
   useEffect(() => {

@@ -1,8 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { useLanguage } from '../contexts/LanguageContext';
 import CesiumMapComponent from '../components/CesiumMapComponent';
-import DateRangeFilter from '../components/DateRangeFilter';
 import AlbumPanel from '../components/AlbumPanel';
 import LoadingOverlay from '../components/LoadingOverlay';
 import CreateAlbumModal from '../components/CreateAlbumModal';
@@ -10,9 +9,8 @@ import SearchBox from '../components/SearchBox';
 import ToolbarDropdown from '../components/ToolbarDropdown';
 import { type MapLayer } from '../components/LayerControl';
 import { useMapData } from '../hooks/useMapData';
-import { useTimeline } from '../hooks/useTimeline';
 import { apiClient } from '../services/api';
-import type { Album, TimeRange } from '../types';
+import type { Album } from '../types';
 
 const MapPage: React.FC = () => {
   const { user, logout } = useAuth();
@@ -25,31 +23,21 @@ const MapPage: React.FC = () => {
   const [isCreateMode, setIsCreateMode] = useState(false); // New state for create mode
   const [currentLayer, setCurrentLayer] = useState<MapLayer>('vector');
 
-  // Timeline state management
+  // Viewport-driven map data
   const {
-    selectedRange,
-    setSelectedRange,
-    getFilteredAlbums,
-    resetToFullRange,
-  } = useTimeline('month');
-
-  // Load all albums without time filtering for timeline
-  const { albums: allAlbums, paths, isLoading, error, createAlbum, updateAlbumInList, deleteAlbumFromList, clearError, refetchPaths, refetchAlbums } = useMapData();
-
-  // Get filtered albums for map display based on timeline selection
-  const albums = getFilteredAlbums(allAlbums);
-
-  // No need to reset range on load - useTimeline already defaults to last month
-
-  // Handle date range changes
-  const handleDateRangeChange = useCallback((range: TimeRange) => {
-    setSelectedRange(range);
-  }, [setSelectedRange]);
-
-  // Handle reset to full range
-  const handleResetRange = useCallback(() => {
-    resetToFullRange(allAlbums);
-  }, [resetToFullRange, allAlbums]);
+    albums,
+    clusters,
+    paths,
+    isLoading,
+    error,
+    setViewport,
+    createAlbum,
+    updateAlbumInList,
+    deleteAlbumFromList,
+    clearError,
+    refetchPaths,
+    refetchAlbums,
+  } = useMapData();
 
   // Handle album marker click
   const handleAlbumClick = useCallback((album: Album) => {
@@ -205,20 +193,10 @@ const MapPage: React.FC = () => {
           
           {/* Second row - Date Range Filter and Search */}
           <div className="py-2 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-4">
-            <div className="flex-shrink-0 overflow-x-auto">
-              <DateRangeFilter
-                selectedRange={selectedRange}
-                onRangeChange={handleDateRangeChange}
-                onReset={handleResetRange}
-                totalCount={allAlbums.length}
-                filteredCount={albums.length}
-              />
-            </div>
-            
             <div className="flex items-center gap-2 flex-shrink-0">
               {/* Search box - full width on mobile */}
               <SearchBox
-                albums={allAlbums}
+                albums={albums}
                 onAlbumSelect={handleSearchSelect}
                 className="flex-1 sm:w-64"
               />
@@ -257,7 +235,8 @@ const MapPage: React.FC = () => {
         <div className="flex-1 relative" style={{ minHeight: '400px' }}>
           <CesiumMapComponent
             albums={albums}
-            selectedTimeRange={selectedRange}
+            clusters={clusters}
+            onViewportChange={setViewport}
             onAlbumClick={handleAlbumClick}
             onMapClick={handleMapClick}
             showPaths={showPaths}
@@ -297,7 +276,7 @@ const MapPage: React.FC = () => {
           onEdit={handleAlbumEdit}
           onPhotoUpload={handlePhotoUpload}
           onSetNextDestination={handleSetNextDestination}
-          allAlbums={allAlbums}
+          allAlbums={albums}
           onAlbumDeleted={handleAlbumDeleted}
           onDataChanged={refetchAlbums}
         />
