@@ -47,5 +47,4 @@ docker run -d -p 8080:8080 -v $(pwd)/data:/app/data ghcr.io/touken928/geoalbum:l
 **后端**：Go + Gin + SQLite + JWT
 
 ## 开源协议
-
-MIT
+GPL-3.0 (GNU General Public License v3.0)
